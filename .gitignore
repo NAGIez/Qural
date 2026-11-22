@@ -17,3 +17,7 @@ Projects/MixKeys/
 **/limits.json
 **/test-media.txt
 *.log
+
+# Qural для Mac — результаты сборки
+Projects/QuralMac/.build/
+Projects/QuralMac/build/

@@ -1,0 +1,24 @@
+# Qural для Mac: сборка на облачном Mac GitHub при каждом изменении Projects/QuralMac.
+# Готовое приложение — в артефакте Qural-mac (вкладка Actions → запуск → Artifacts).
+name: Qural для Mac
+
+on:
+  push:
+    paths:
+      - 'Projects/QuralMac/**'
+      - '.github/workflows/mac.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Версии
+        run: sw_vers && swift --version
+      - name: Сборка
+        run: bash Projects/QuralMac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Qural-mac
+          path: Projects/QuralMac/build/Qural-mac.zip
