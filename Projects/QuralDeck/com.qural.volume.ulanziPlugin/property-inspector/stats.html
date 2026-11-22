@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — нагрузка ПК</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 10px 10px 10px 16px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 420px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper">
+    <p class="qr-note">
+      <b>CPU</b> — загрузка процессора, <b>GPU</b> — загрузка и температура видеокарты NVIDIA, <b>RAM</b> — занятая память
+      (ГБ и %). Обновляется раз в секунду, пока кнопка видна на деке. Перегрев: от 75° — жёлтым, от 85° — красным;
+      память — от 80 % и 90 %.<br /><br />
+      <b>Температура процессора</b>: Windows её не отдаёт без специального драйвера. Запустите бесплатный
+      <b>LibreHardwareMonitor</b> (от администратора) — Qural возьмёт температуру оттуда сам, в течение 30 секунд.<br /><br />
+      Нужен запущенный Qural.
+    </p>
+  </div>
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script>$UD.connect();</script>
+</body>
+</html>

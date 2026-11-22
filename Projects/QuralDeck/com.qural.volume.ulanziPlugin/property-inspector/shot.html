@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — скриншот</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 4px 10px 10px 122px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 320px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item" type="select">
+        <div class="uspi-item-label">Снимать</div>
+        <select class="uspi-item-value" name="mode" id="mode">
+          <option value="region">Область — выделить и рисовать</option>
+          <option value="full">Весь экран — сразу в папку и буфер</option>
+          <option value="window">Окно в фокусе — сразу в папку и буфер</option>
+        </select>
+      </div>
+    </form>
+    <p class="qr-note" id="note"></p>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script src="./shot.js"></script>
+</body>
+</html>

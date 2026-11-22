@@ -1,0 +1,163 @@
+{
+  "Version": "1.0.0",
+  "Author": "Qural",
+  "Name": "Qural",
+  "Description": "Громкость программ и профили цвета Qural на кнопках и крутилках. Нужен запущенный Qural.",
+  "Icon": "assets/action.png",
+  "Category": "Qural",
+  "CategoryIcon": "assets/action.png",
+  "CodePath": "plugin/app.js",
+  "Type": "JavaScript",
+  "SupportedInMultiActions": false,
+  "PrivateAPI": true,
+  "UUID": "com.qural.deck.volume",
+  "Actions": [
+    {
+      "Name": "Громкость программы",
+      "Icon": "assets/action.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/action.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "Громче / тише; зажать и крутить — трек",
+          "Push": "Без звука",
+          "Touch": "Без звука"
+        }
+      },
+      "Tooltip": "Показывает громкость программы. Кнопка — без звука (или громче/тише), крутилка — громче/тише (зажать и крутить — следующий трек), нажатие — без звука",
+      "UUID": "com.qural.deck.volume.app",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Профиль цвета",
+      "Icon": "assets/color.png",
+      "PropertyInspectorPath": "property-inspector/color.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/color.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "Следующий / предыдущий профиль",
+          "Push": "Выбранный профиль",
+          "Touch": "Выбранный профиль"
+        }
+      },
+      "Tooltip": "Профиль цвета Qural: кнопка включает выбранный профиль (или следующий), крутилка листает профили",
+      "UUID": "com.qural.deck.volume.color",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Сейчас играет",
+      "Icon": "assets/media.png",
+      "PropertyInspectorPath": "property-inspector/media.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/media.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "Следующий / предыдущий трек",
+          "Push": "Пауза; 2 — след., 3 — пред., держать — лайк",
+          "Touch": "Пауза / играть"
+        }
+      },
+      "Tooltip": "Что играет сейчас (Spotify, браузер, любой плеер Windows): обложка, название (длинное — бегущей строкой), позиция. Нажатие — пауза, два раза — следующий трек, три — предыдущий, держать — лайк в Spotify; крутилка — треки",
+      "UUID": "com.qural.deck.volume.media",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Нагрузка ПК",
+      "Icon": "assets/stats.png",
+      "PropertyInspectorPath": "property-inspector/stats.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/stats.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "—",
+          "Push": "—",
+          "Touch": "—"
+        }
+      },
+      "Tooltip": "Загрузка и температура процессора и видеокарты, занятая память — пиксельным шрифтом. Перегрев — жёлтым и красным",
+      "UUID": "com.qural.deck.volume.stats",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Скриншот",
+      "Icon": "assets/shot.png",
+      "PropertyInspectorPath": "property-inspector/shot.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/shot.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Скриншот Qural: выделить область (с рисованием), весь экран или окно в фокусе — сразу в папку и буфер",
+      "UUID": "com.qural.deck.volume.shot",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Запись экрана",
+      "Icon": "assets/rec.png",
+      "PropertyInspectorPath": "property-inspector/rec.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/rec.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Запись экрана Qural: нажатие — начать (область, окно или весь экран) или остановить; можно настроить на паузу",
+      "UUID": "com.qural.deck.volume.rec",
+      "SupportedInMultiActions": false
+    }
+  ],
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinVersion": "2.1.4"
+  }
+}

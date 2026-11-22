@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — громкость</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 4px 10px 10px 122px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 320px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+    .qr-row-btn { display: flex; gap: 8px; }
+    .qr-row-btn input { flex: 1; min-width: 0; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item" type="select">
+        <div class="uspi-item-label">Программа</div>
+        <select class="uspi-item-value" id="appSel">
+          <option value="active">Активное окно (в фокусе)</option>
+        </select>
+      </div>
+      <div class="uspi-item hidden" id="customRow">
+        <div class="uspi-item-label">Имя exe</div>
+        <input class="uspi-item-value" type="text" id="custom" placeholder="например, spotify" autocomplete="off" />
+      </div>
+      <input type="hidden" name="app" id="app" value="active" />
+
+      <div class="uspi-item" type="select" id="pressRow">
+        <div class="uspi-item-label">Нажатие</div>
+        <select class="uspi-item-value" name="press">
+          <option value="mute">Без звука / вернуть</option>
+          <option value="up">Громче</option>
+          <option value="down">Тише</option>
+        </select>
+      </div>
+
+      <div class="uspi-item" type="select">
+        <div class="uspi-item-label">Шаг</div>
+        <select class="uspi-item-value" name="step">
+          <option value="">Как в Qural</option>
+          <option value="1">1 %</option>
+          <option value="2">2 %</option>
+          <option value="5">5 %</option>
+          <option value="10">10 %</option>
+        </select>
+      </div>
+    </form>
+    <p class="qr-note" id="note"></p>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script src="./inspector.js"></script>
+</body>
+</html>

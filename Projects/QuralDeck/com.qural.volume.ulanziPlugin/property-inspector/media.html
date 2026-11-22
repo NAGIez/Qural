@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — сейчас играет</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 10px 10px 10px 16px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 420px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+    .qr-note ol { margin: 4px 0 0; padding-left: 18px; }
+    .qr-note li { margin-bottom: 3px; }
+    .qr-note code { user-select: all; color: var(--uspi-textcolor); }
+    .qr-state { margin: 6px 10px 6px 122px; font-size: 12px; color: var(--uspi-textcolor); }
+    .qr-btn { margin: 4px 10px 8px 122px; padding: 5px 14px; border-radius: 6px; border: 0; background: #1db954; color: #000; font-size: 12px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <p class="qr-note">
+      Показывает, что играет сейчас в любом плеере Windows — Spotify, браузер, Яндекс Музыка: обложку, название,
+      исполнителя и позицию в треке.<br /><br />
+      <b>Нажатие</b> — пауза / играть, <b>два раза</b> — следующий трек, <b>три раза</b> — предыдущий,
+      <b>держать</b> — лайк в Spotify («Любимые треки»). <b>Крутилка</b>: поворот — следующий / предыдущий трек,
+      нажатие — так же, как у кнопки.<br />Длинное название бежит строкой, при смене трека обложка уезжает и въезжает новая.
+    </p>
+    <div class="qr-state" id="state">Spotify: …</div>
+    <form id="property-inspector" onsubmit="return false">
+      <div class="uspi-item">
+        <div class="uspi-item-label">Spotify Client ID</div>
+        <input class="uspi-item-value" type="text" id="clientId" placeholder="32 знака из Spotify Dashboard" autocomplete="off" />
+      </div>
+    </form>
+    <button class="qr-btn" id="login" type="button">Войти в Spotify</button>
+    <div class="qr-note">
+      <b>Лайки — один раз настроить:</b>
+      <ol>
+        <li>Откройте developer.spotify.com/dashboard → <b>Create app</b>, любое имя и описание.</li>
+        <li>В <b>Redirect URIs</b> добавьте <code id="redirect">http://127.0.0.1:8899/callback</code>, отметьте <b>Web API</b>, сохраните.</li>
+        <li>Скопируйте <b>Client ID</b> (секрет не нужен), вставьте сюда и нажмите <b>Войти в Spotify</b> — в браузере нажмите «Согласен».</li>
+      </ol>
+      Ключи хранит только Qural на этом компьютере (%APPDATA%\Qural\spotify.json). Нужен запущенный Qural.
+    </div>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script src="./media.js"></script>
+</body>
+</html>

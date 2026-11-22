@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Редактор записи</title>
+<link rel="stylesheet" href="glasswise/tokens.css">
+<link rel="stylesheet" href="glasswise/components.css">
+<link rel="stylesheet" href="editor.css">
+<script>window.GW_OPTIONS = { themeKey: 'qr-theme' };</script>
+<script src="glasswise/glasswise.js"></script>
+</head>
+<body class="gw ed">
+<header class="ed-top">
+  <div class="ed-name"><b>Редактор записи</b><span class="gw-sub" id="info">…</span></div>
+  <div class="gw-row ed-acts">
+    <button class="gw-pill" id="frameBtn" title="Текущий кадр — в буфер обмена картинкой">Скопировать кадр</button>
+    <button class="gw-ib del" id="delBtn" title="Удалить запись"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></svg></button>
+    <button class="gw-btn main" id="saveBtn">Сохранить</button>
+  </div>
+</header>
+
+<div class="ed-body">
+  <main class="ed-stage" id="stage">
+    <div class="ed-video" id="videoBox">
+      <video id="video" preload="auto" muted playsinline></video>
+      <div class="ed-crop" id="crop" hidden>
+        <div class="ed-crop-box" id="cropBox">
+          <i data-h="0"></i><i data-h="1"></i><i data-h="2"></i><i data-h="3"></i><i data-h="4"></i><i data-h="5"></i><i data-h="6"></i><i data-h="7"></i>
+          <span class="ed-crop-size" id="cropSize"></span>
+        </div>
+      </div>
+    </div>
+    <div class="ed-wait" id="wait"><div class="ed-wait-card"><b id="waitTitle">Готовлю просмотр…</b><div class="ed-bar"><i id="waitBar"></i></div><span class="gw-sub" id="waitText"></span></div></div>
+  </main>
+
+  <aside class="ed-side">
+    <div class="gw-sec">Звук</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt ed-tr" id="sysRow"><span><b>Звук ПК</b></span><span class="ed-vol"><button class="gw-ib" id="sysMute" title="Выключить дорожку"></button><input type="range" class="ed-range" id="sysVol" min="0" max="200" step="5"><output id="sysOut"></output></span></div>
+        <div class="gw-opt ed-tr" id="micRow"><span><b>Микрофон</b></span><span class="ed-vol"><button class="gw-ib" id="micMute" title="Выключить дорожку"></button><input type="range" class="ed-range" id="micVol" min="0" max="200" step="5"><output id="micOut"></output></span></div>
+        <button class="gw-opt qr-optbtn" id="noiseBtn"><span>Шумоподавление<small id="noiseNote">Для микрофона: слышно сразу при просмотре</small></span><span class="gw-v" id="noiseV"></span></button>
+        <label class="gw-opt" id="sepRow"><span>Две дорожки в файле<small>Выключено — сведены в одну</small></span><span class="gw-switch"><input type="checkbox" id="separate"></span></label>
+      </div>
+    </div>
+
+    <div class="gw-sec">Кадр</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Кадрировать<small id="cropNote">Тяните рамку на видео</small></span><span class="gw-switch"><input type="checkbox" id="cropOn"></span></label>
+        <button class="gw-opt qr-optbtn" id="scaleBtn"><span>Размер</span><span class="gw-v" id="scaleV"></span></button>
+      </div>
+    </div>
+
+    <div class="gw-sec">Сохранение</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <button class="gw-opt qr-optbtn" id="formatBtn"><span>Формат</span><span class="gw-v" id="formatV"></span></button>
+        <button class="gw-opt qr-optbtn" id="encBtn"><span>Кодек</span><span class="gw-v" id="encV"></span></button>
+        <button class="gw-opt qr-optbtn" id="qualityBtn"><span>Качество</span><span class="gw-v" id="qualityV"></span></button>
+        <div class="gw-opt" id="gifRow"><span>GIF<small>Кадров в секунду и ширина</small></span><span class="gw-row"><button class="gw-pill" id="gifFpsBtn"></button><button class="gw-pill" id="gifWBtn"></button></span></div>
+        <label class="gw-opt"><span>Спросить имя и папку</span><span class="gw-switch"><input type="checkbox" id="ask"></span></label>
+      </div>
+    </div>
+    <p class="gw-sub ed-outinfo" id="outInfo"></p>
+  </aside>
+</div>
+
+<footer class="ed-bottom">
+  <div class="ed-transport">
+    <button class="gw-circle" id="playBtn" title="Пробел — играть / пауза"></button>
+    <span class="ed-time"><b id="tNow">0:00</b> / <span id="tDur">0:00</span></span>
+    <span class="ed-selacts" id="selActs" hidden>
+      <span class="gw-sub" id="selText"></span>
+      <button class="gw-pill" id="cutBtn">Вырезать <kbd>Del</kbd></button>
+      <button class="gw-pill" id="keepBtn">Оставить только это</button>
+      <button class="gw-ib" id="selClear" title="Снять выделение"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </span>
+    <span class="gw-sub ed-hint" id="hint">Протяните по шкале — выделить кусок · I / O — начало и конец выделения · ← → — секунда · Ctrl+Z — отменить</span>
+  </div>
+  <div class="ed-tl" id="tl">
+    <div class="ed-ticks" id="ticks"></div>
+    <div class="ed-track" id="track">
+      <div class="ed-wave" id="wave"></div>
+      <div class="ed-out" id="outL"></div><div class="ed-out" id="outR"></div>
+      <div id="cuts"></div>
+      <div class="ed-sel" id="sel" hidden></div>
+      <div class="ed-h" id="hL" title="Начало"></div><div class="ed-h" id="hR" title="Конец"></div>
+      <div class="ed-ph" id="ph"></div>
+    </div>
+  </div>
+</footer>
+
+<!-- сохранение -->
+<div class="gw-sheet" id="doneSheet" hidden>
+  <div class="gw-sh">
+    <div class="gw-sh-head"><b id="doneTitle">Сохранено</b><button type="button" class="gw-ib" data-close title="Закрыть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <p class="gw-sub" id="doneText"></p>
+    <div class="gw-sh-acts"><button class="gw-pill" id="copyFile">Копировать файл</button><button class="gw-pill" id="openFolder">Показать в папке</button><button class="gw-pill main" id="closeEd">Закрыть редактор</button></div>
+  </div>
+</div>
+
+<script src="editor.js"></script>
+</body>
+</html>

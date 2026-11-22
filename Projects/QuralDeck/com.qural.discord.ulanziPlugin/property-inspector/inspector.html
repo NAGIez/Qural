@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — Discord</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 4px 10px 10px 122px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 320px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+    .qr-note ol { margin: 4px 0 0; padding-left: 18px; }
+    .qr-note li { margin-bottom: 3px; }
+    .qr-state { margin: 6px 10px 6px 122px; font-size: 12px; color: var(--uspi-textcolor); }
+    .qr-btn { margin: 4px 10px 8px 122px; padding: 5px 14px; border-radius: 6px; border: 0; background: #5865f2; color: #fff; font-size: 12px; cursor: pointer; }
+    .qr-btn[disabled] { opacity: .5; cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <div class="qr-state" id="state">…</div>
+    <form id="property-inspector" onsubmit="return false">
+      <div class="uspi-item">
+        <div class="uspi-item-label">Client ID</div>
+        <input class="uspi-item-value" type="text" id="clientId" placeholder="например, 1234567890123456789" autocomplete="off" />
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label">Client Secret</div>
+        <input class="uspi-item-value" type="password" id="clientSecret" placeholder="вставьте секрет" autocomplete="off" />
+      </div>
+    </form>
+    <button class="qr-btn" id="save" type="button">Сохранить и подключить</button>
+    <div class="qr-note" id="help">
+      <b>Нажатие</b> — заглушить / вернуть микрофон. <b>Долгое нажатие</b> — выключить / вернуть звук.
+      <br /><br /><b>Один раз:</b>
+      <ol>
+        <li>Откройте discord.com/developers/applications → <b>New Application</b>, любое имя.</li>
+        <li>Раздел <b>OAuth2</b>: скопируйте <b>Client ID</b>, нажмите <b>Reset Secret</b> и скопируйте <b>Client Secret</b>.</li>
+        <li>Там же в <b>Redirects</b> добавьте <b>http://localhost</b> и сохраните.</li>
+        <li>В разделе <b>App Testers</b> добавьте свой аккаунт Discord и примите приглашение — без этого Discord не даёт права на голос.</li>
+        <li>Вставьте ID и секрет сюда, нажмите кнопку выше — в Discord появится окно, нажмите <b>Авторизовать</b>.</li>
+      </ol>
+      Секрет и токен хранятся только на этом компьютере (%APPDATA%\Qural\deck-discord.json).
+    </div>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script src="./inspector.js"></script>
+</body>
+</html>

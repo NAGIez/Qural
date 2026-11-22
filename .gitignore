@@ -1,0 +1,19 @@
+# результаты сборки
+App/
+dist/
+**/obj/
+
+# FFmpeg скачивает build.ps1 (файлы больше 100 МБ — GitHub их не принимает)
+Projects/Qural/ffmpeg/*.exe
+
+# прежние программы, вошедшие в Qural, и чужие примеры
+Projects/ColorSwitch/
+Projects/MixKeys/
+Пример/
+
+# журналы и данные плагинов на этом компьютере
+**/plugin.log
+**/cache/
+**/limits.json
+**/test-media.txt
+*.log

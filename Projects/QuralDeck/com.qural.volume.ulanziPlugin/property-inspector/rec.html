@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — запись экрана</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 4px 10px 10px 122px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 320px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item" type="select">
+        <div class="uspi-item-label">Нажатие</div>
+        <select class="uspi-item-value" name="press" id="press">
+          <option value="toggle">Начать / остановить</option>
+          <option value="pause">Пауза / продолжить</option>
+        </select>
+      </div>
+      <div class="uspi-item" type="select" id="modeRow">
+        <div class="uspi-item-label">Записывать</div>
+        <select class="uspi-item-value" name="mode" id="mode">
+          <option value="screen">Весь экран (монитор с курсором) — сразу</option>
+          <option value="region">Выбрать область или окно (красная рамка)</option>
+          <option value="window">Окно в фокусе</option>
+        </select>
+      </div>
+    </form>
+    <p class="qr-note">Звук, кодек, качество и шумоподавление — в Qural на странице «Запись экрана». Во время записи сверху экрана панель с временем, паузой и стопом.<br><br>Нужен запущенный Qural.</p>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script>
+    let S = { press: 'toggle', mode: 'screen' };
+    const $ = (id) => document.getElementById(id);
+    function render() { $('press').value = S.press || 'toggle'; $('mode').value = S.mode || 'screen'; $('modeRow').style.display = S.press === 'pause' ? 'none' : ''; }
+    $UD.connect();
+    $UD.onConnected(() => {
+      render();
+      document.querySelector('.uspi-wrapper').classList.remove('hidden');
+      for (const k of ['press', 'mode']) $(k).addEventListener('change', () => { S = { ...S, [k]: $(k).value }; $UD.setSettings(S); render(); });
+    });
+    const apply = (p) => { S = { ...S, ...p }; render(); };
+    $UD.onParamFromApp((j) => { const p = j.param || {}; if (p.press || p.mode) apply(p); else $UD.setSettings(S); });
+    $UD.onAdd((j) => { const p = j.param || {}; if (p.press || p.mode) apply(p); });
+    $UD.onDidReceiveSettings((j) => { if (j && j.settings) apply(j.settings); });
+  </script>
+</body>
+</html>

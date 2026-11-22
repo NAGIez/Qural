@@ -1,0 +1,226 @@
+/* Qural — свои детали поверх GlassWise UI. Только токены из tokens.css, приставка qr-. */
+
+body.gw { user-select:none; }
+.gw-field { user-select:text; }
+
+/* ── каркас: меню слева во всю высоту, справа страница ── */
+.qr-shell { display:grid; grid-template-columns:264px minmax(0, 1fr); }
+.qr-side { position:sticky; top:var(--top); height:calc(100vh - var(--top)); overflow:auto; padding:14px 10px 24px; border-right:.5px solid var(--sep); }
+.qr-content { min-width:0; padding:26px 32px 80px; }
+.qr-view { max-width:780px; margin:0 auto; }
+.qr-gap { margin-top:18px; }
+.qr-gap2 { margin-top:14px; }
+
+/* меню: пункты, группы со стрелкой, вложенные пункты */
+.qr-sideitems { display:flex; flex-direction:column; gap:2px; }
+.qr-sideitems > button, .qr-ghead { font-weight:500; }
+.qr-nav svg.qr-ni { width:18px; height:18px; color:var(--label2); }
+.qr-nav .on svg.qr-ni { color:var(--blue); }
+.qr-group { display:flex; flex-direction:column; gap:2px; }
+.qr-tw { margin-left:auto; display:grid; place-items:center; width:22px; height:22px; border-radius:6px; color:var(--label2); flex:none; }
+.qr-tw:hover { background:var(--fill2); }
+.qr-tw svg { width:12px; height:12px; transition:transform .25s var(--ease); }
+.qr-group.closed .qr-tw svg { transform:rotate(-90deg); }
+.qr-group.closed .qr-kids { display:none; }
+.qr-kids { display:flex; flex-direction:column; gap:2px; }
+.qr-kids > button { padding-left:36px !important; font-size:13px !important; }
+.qr-group.off .qr-kids > button { opacity:.55; }
+.qr-nav .qr-addrow { color:var(--blue) !important; }
+.qr-nav .qr-addrow svg { width:12px; height:12px; }
+.qr-sep { height:.5px; background:var(--sep); margin:8px 6px; flex:none; }
+
+/* ── главная ── */
+.qr-modgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px; }
+.qr-mod { display:flex; flex-direction:column; gap:10px; }
+.qr-mod-head { display:flex; align-items:center; gap:12px; }
+.qr-mod-head b { flex:1; font-size:16px; font-weight:700; letter-spacing:-.2px; }
+.qr-mod-ic { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:var(--tint); color:var(--blue); flex:none; }
+.qr-mod-ic svg { width:20px; height:20px; }
+.qr-mod.off .qr-mod-ic { background:var(--fill); color:var(--label2); }
+.qr-mod p { margin:0; color:var(--label2); font-size:13px; min-height:38px; }
+.qr-mod .gw-link { align-self:flex-start; }
+.qr-quick { gap:6px; }
+.qr-quick .gw-sub { font-size:12.5px; }
+.qr-conflicts { margin-left:auto; font-weight:500; font-size:12.5px; }
+.qr-conflicts.ok { color:var(--label2); }
+.qr-conflicts.bad { color:var(--orange); }
+.qr-keys li { cursor:pointer; transition:background-color .15s; }
+.qr-keys li:hover { background:var(--fill); }
+.qr-keys li.off { opacity:.45; }
+.qr-keys .qr-kic { width:26px; height:26px; border-radius:7px; display:grid; place-items:center; background:var(--tint); color:var(--blue); flex:none; }
+.qr-keys .qr-kic svg { width:15px; height:15px; }
+.qr-keys .qr-kic img { width:18px; height:18px; }
+.qr-kbds { display:flex; gap:4px; flex:none; }
+.qr-kbd { display:inline-grid; place-items:center; min-width:24px; height:22px; padding:0 7px; border-radius:6px; background:var(--fill); box-shadow:inset 0 -1px 0 var(--sep);
+  font-size:11.5px; font-weight:600; color:var(--label); font-variant-numeric:tabular-nums; }
+.qr-keys li.empty-row { cursor:default; color:var(--label2); font-size:13px; }
+.qr-keys li.empty-row:hover { background:none; }
+
+/* программы, изменённые через «Активное окно» */
+.qr-touched li { gap:10px; }
+.qr-touched .qr-kic { width:26px; height:26px; border-radius:7px; display:grid; place-items:center; background:var(--fill); flex:none; }
+.qr-touched .qr-kic img { width:18px; height:18px; }
+.qr-touched .gw-t { min-width:120px; }
+.qr-touched .qr-range { width:150px; flex:none; }
+.qr-touched output { width:42px; text-align:right; color:var(--label2); font-variant-numeric:tabular-nums; font-size:13px; flex:none; }
+.qr-touched li.idle .qr-range { opacity:.4; }
+.qr-touched li.empty-row { color:var(--label2); font-size:13px; }
+
+/* команды для деки */
+.qr-cmdpath { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.qr-cmdpath code, .qr-cmds code { user-select:text; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.qr-cmdpath code { flex:1; padding:6px 9px; }
+.qr-cmds li { gap:10px; }
+.qr-cmds .gw-t { min-width:0; }
+.qr-cmds .gw-t code { display:block; margin-top:3px; width:max-content; max-width:100%; }
+.qr-cmds .qr-cmdgrp { padding:8px 12px 6px; font-size:12px; font-weight:600; color:var(--label2); background:var(--fill); }
+.qr-cmds .qr-cmdgrp::after { display:none; }
+
+/* списки на страницах инструментов */
+.qr-pick li { cursor:pointer; transition:background-color .15s; }
+.qr-pick li:hover { background:var(--fill); }
+.qr-pick .gw-t small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-pick .qr-kic { width:26px; height:26px; border-radius:7px; display:grid; place-items:center; background:var(--tint); color:var(--blue); flex:none; }
+.qr-pick .qr-kic svg { width:15px; height:15px; }
+.qr-pick .qr-kic img { width:20px; height:20px; }
+
+/* ── своя шапка окна: за шапку окно двигается, кнопки окна справа ── */
+.gw-top { app-region:drag; -webkit-app-region:drag; padding-right:10px; }
+.gw-top button, .gw-top a, .gw-top input { app-region:no-drag; -webkit-app-region:no-drag; }
+.qr-winbtns { display:flex; gap:2px; margin-left:10px; }
+.qr-winbtns .gw-ib { width:36px; height:30px; border-radius:var(--r-sm); font-size:15px; color:var(--label2); }
+.qr-winbtns .gw-ib:hover { background:var(--fill); color:var(--label); }
+.qr-winbtns .qr-close:hover { background:color-mix(in srgb, var(--red) 16%, transparent); color:var(--red); }
+html.qr-inactive .gw-brand, html.qr-inactive .qr-winbtns { opacity:.55; transition:opacity .2s var(--ease); }
+.qr-edge { position:fixed; z-index:100; app-region:no-drag; -webkit-app-region:no-drag; }
+.qr-edge[data-dir="t"], .qr-edge[data-dir="b"] { left:8px; right:8px; height:5px; cursor:ns-resize; }
+.qr-edge[data-dir="l"], .qr-edge[data-dir="r"] { top:8px; bottom:8px; width:5px; cursor:ew-resize; }
+.qr-edge[data-dir="t"] { top:0; } .qr-edge[data-dir="b"] { bottom:0; }
+.qr-edge[data-dir="l"] { left:0; } .qr-edge[data-dir="r"] { right:0; }
+.qr-edge[data-dir="tl"], .qr-edge[data-dir="tr"], .qr-edge[data-dir="bl"], .qr-edge[data-dir="br"] { width:8px; height:8px; }
+.qr-edge[data-dir="tl"] { top:0; left:0; cursor:nwse-resize; } .qr-edge[data-dir="br"] { bottom:0; right:0; cursor:nwse-resize; }
+.qr-edge[data-dir="tr"] { top:0; right:0; cursor:nesw-resize; } .qr-edge[data-dir="bl"] { bottom:0; left:0; cursor:nesw-resize; }
+html.qr-max .qr-edge { display:none; }
+
+/* логотип */
+.gw-brand i.qr-logo { background:none; width:28px; height:28px; }
+.qr-logo svg { width:28px; height:28px; }
+
+/* ── значки программ и подписи в меню ── */
+.gw-nav button img, .qr-icon { width:18px; height:18px; flex:none; border-radius:5px; }
+.qr-icon { display:inline-grid; place-items:center; background:var(--fill2); color:var(--label2); font-size:10px; font-weight:700; }
+.gw-nav .qr-pn { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; }
+.gw-nav .gw-chip { flex:none; }
+.gw-nav button.on .gw-chip { background:var(--card); }
+
+/* ── шапка раздела ── */
+.qr-head { display:flex; align-items:center; gap:14px; }
+.qr-bigicon { width:44px; height:44px; flex:none; border-radius:12px; background:var(--card); box-shadow:var(--shadow); display:grid; place-items:center; color:var(--blue); }
+.qr-bigicon > svg { width:26px; height:26px; }
+.qr-bigicon img { width:30px; height:30px; }
+.qr-bigicon .qr-icon { width:30px; height:30px; font-size:15px; border-radius:8px; }
+.qr-title { flex:1; min-width:0; }
+.qr-title .gw-h1 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-tools { flex:none; gap:2px; }
+
+/* ── поле горячей клавиши ── */
+.qr-keywrap { display:inline-flex; align-items:center; gap:4px; flex:none; }
+.qr-key { min-width:150px; height:30px; padding:0 12px; border-radius:var(--r); background:var(--card); box-shadow:inset 0 0 0 1px var(--field-edge);
+  font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--label); text-align:center;
+  transition:background-color .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease); }
+.qr-key:hover { box-shadow:inset 0 0 0 1px var(--blue); }
+.qr-key.empty { color:var(--label2); font-weight:500; }
+.qr-key.rec { background:var(--tint); color:var(--blue); box-shadow:inset 0 0 0 1px var(--blue), var(--ring); }
+.gw-opt .qr-act { display:flex; align-items:center; gap:10px; }
+.gw-opt .qr-act svg { width:18px; height:18px; color:var(--blue); }
+
+/* ── ползунки (в GlassWise нет — собраны из токенов) ── */
+.qr-tabs { margin-bottom:10px; max-width:460px; }
+.qr-tabs button { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qr-mon .gw-grp { margin-bottom:6px; }
+.qr-crow { display:grid; grid-template-columns:190px minmax(0, 1fr) 52px; align-items:center; gap:14px; padding:9px 4px 9px 8px; }
+.qr-crow + .qr-crow { border-top:.5px solid var(--sep); }
+.qr-crow > span { font-weight:500; }
+.qr-crow.off { opacity:.4; }
+.qr-row { display:grid; grid-template-columns:auto minmax(0, 1fr) 52px; align-items:center; gap:14px; padding:4px 4px 4px 8px; }
+.qr-label { font-weight:500; min-width:140px; }
+.qr-row output, .qr-crow output { text-align:right; color:var(--label2); font-variant-numeric:tabular-nums; font-size:13px; }
+.qr-live .gw-ib { width:32px; height:32px; font-size:17px; color:var(--blue); background:var(--tint); }
+.qr-live .gw-ib.muted { color:var(--red); background:color-mix(in srgb, var(--red) 14%, transparent); }
+.qr-range { --p:50%; appearance:none; -webkit-appearance:none; width:100%; height:24px; margin:0; background:transparent; cursor:pointer; }
+.qr-range::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:linear-gradient(to right, var(--blue) var(--p), var(--fill2) var(--p)); }
+.qr-range::-webkit-slider-thumb { -webkit-appearance:none; width:21px; height:21px; margin-top:-8.5px; border-radius:50%; background:#fff;
+  box-shadow:0 2px 4px rgba(0,0,0,.2), 0 0 0 .5px rgba(0,0,0,.06); transition:transform .2s var(--ease), box-shadow .2s var(--ease); }
+.qr-range:active::-webkit-slider-thumb { transform:scale(1.1); }
+.qr-range:focus-visible { box-shadow:none; }
+.qr-range:focus-visible::-webkit-slider-thumb { box-shadow:var(--ring), 0 2px 4px rgba(0,0,0,.2); }
+.qr-range:disabled { cursor:default; }
+.qr-row .qr-range:disabled { opacity:.4; }
+.qr-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px 8px; border-top:.5px solid var(--sep); margin-top:2px; }
+.qr-foot .gw-sub { flex:1; font-size:12px; }
+.qr-note { margin:10px 4px 0 8px; font-size:12px; }
+.qr-presets { margin:6px 0 12px 8px; gap:6px; }
+
+/* строка-кнопка в группе настроек */
+.qr-optbtn { width:100%; text-align:left; }
+.qr-optbtn:hover { background:var(--fill); }
+.gw-grp > .qr-optbtn:last-child { border-radius:0 0 var(--r) var(--r); }
+.qr-chev { color:var(--label3); }
+
+/* ── звук: пусто, добавить, имена exe ── */
+.qr-empty { margin-top:22px; }
+.qr-empty-act { margin-top:14px; }
+.qr-sessions { margin:8px 0 16px; max-height:46vh; overflow:auto; }
+.qr-sessions li { cursor:pointer; transition:background-color .15s; }
+.qr-sessions li:hover { background:var(--fill); }
+.qr-sessions li.added { cursor:default; }
+.qr-sessions li.added:hover { background:none; }
+.qr-sessions .gw-t small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-manual { display:flex; gap:8px; align-items:center; }
+.qr-manual .gw-pill { height:36px; padding:0 16px; flex:none; }
+#s-manualForm, .gw-sheet form { margin:0; }
+.qr-names { gap:6px; padding:2px 4px 0 8px; }
+.qr-names .gw-tag { padding-right:4px; }
+.qr-names .gw-tag .gw-ib { width:20px; height:20px; font-size:11px; }
+.qr-nameform { margin:12px 4px 0 8px; }
+
+/* ── блоки с пояснениями ── */
+.qr-info { margin-top:0; }
+#s-focusInfo { margin-top:18px; }
+.qr-info p { margin:0 0 8px; color:var(--label2); font-size:13px; }
+.qr-info p:last-child { margin-bottom:0; }
+.qr-info b { color:var(--label); font-weight:600; }
+.qr-info .gw-chip { margin-right:4px; }
+
+/* «Скриншоты» */
+.qr-inl { display:flex; align-items:center; gap:12px; width:min(280px, 50%); flex:none; }
+.qr-inl output { min-width:40px; text-align:right; color:var(--label2); font-variant-numeric:tabular-nums; font-size:13px; }
+#view-shot .qr-head .gw-btn { margin-left:auto; flex:none; }
+#sh-folder { word-break:break-all; }
+
+/* «Запись экрана» */
+.gw-btn.main.qr-stop { background:var(--red); }
+#view-rec .qr-head .qr-tools { margin-left:auto; }
+
+
+/* Первый запуск */
+.qr-first .qr-side { display:none; }
+.qr-first .qr-content { max-width:none; }
+.qr-welcome { max-width:860px; margin:0 auto; padding-top:24px; }
+.qr-welcome .gw-h1 { font-size:30px; }
+.qr-wgrid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin-top:22px; }
+.qr-wcard { display:flex; align-items:flex-start; gap:14px; padding:18px; text-align:left; cursor:pointer; border:1.5px solid transparent; transition:border-color .2s var(--ease), background .2s var(--ease), opacity .2s var(--ease); font:inherit; color:inherit; }
+.qr-wcard:not(.on) { opacity:.62; }
+.qr-wcard.on { border-color:var(--blue); }
+.qr-wic { flex:none; width:40px; height:40px; border-radius:11px; display:grid; place-items:center; background:var(--tint); color:var(--blue); }
+.qr-wic svg { width:22px; height:22px; }
+.qr-wt { flex:1; display:flex; flex-direction:column; gap:4px; }
+.qr-wt b { font-size:15px; }
+.qr-wt small { color:var(--label2); font-size:12.5px; line-height:1.45; }
+.qr-wcheck { flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--sep); display:grid; place-items:center; color:transparent; }
+.qr-wcard.on .qr-wcheck { background:var(--blue); border-color:var(--blue); color:#fff; }
+.qr-wcheck svg { width:14px; height:14px; }
+.qr-wfoot { display:flex; justify-content:flex-end; margin-top:18px; }
+.qr-wfoot .gw-btn { min-width:160px; }
+@media (max-width:700px) { .qr-wgrid { grid-template-columns:1fr; } }
+.qr-first .qr-shell { grid-template-columns:minmax(0, 1fr); }

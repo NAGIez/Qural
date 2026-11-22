@@ -1,0 +1,52 @@
+/* GlassWise UI — токены оформления «Стекло».
+   Светлая тема — светлый фон с голубым свечением в верхнем углу, почти белые карточки с яркой кромкой.
+   Тёмная — глубокий тёмный фон с синим свечением, полупрозрачные карточки с тонкой светлой кромкой.
+   Тема включается атрибутом <html data-theme="light|dark"> (это делает glasswise.js, по умолчанию — как в системе).
+   Свои цвета на страницах не заводите: берите переменные ниже. */
+:root {
+  /* фон */
+  --bg:#F2F4F8;                                   /* просто цвет фона: для смешивания и мест без свечения */
+  --page-bg:radial-gradient(90% 45% at 0% 0%, #CFE0FF 0%, rgba(207,224,255,0) 70%) fixed, #F2F4F8;
+  --card:rgba(255,255,255,.94);                   /* карточки */
+  --pop:#FFFFFF;                                  /* всплывающие меню и окна */
+  --bar:rgba(242,244,248,.80);                    /* шапка поверх содержимого (с размытием) */
+  /* текст: мелкие подписи — не светлее --label2 */
+  --label:#0B1220; --label2:rgba(20,28,45,.70); --label3:rgba(20,28,45,.38);
+  /* разделители и заливки */
+  --sep:rgba(16,32,64,.12); --fill:rgba(16,32,64,.07); --fill2:rgba(16,32,64,.12);
+  --field:#F1F3F7; --field-edge:rgba(16,32,64,.12);
+  --seg:#FFFFFF;                                  /* бегунок переключателя */
+  /* акценты — системные цвета iOS */
+  --blue:#007AFF; --red:#FF3B30; --orange:#FF9500; --green:#34C759; --indigo:#5856D6; --teal:#30B0C7; --purple:#AF52DE; --gray:#8E8E93;
+  /* тени */
+  --shadow:inset 0 0 0 1px rgba(255,255,255,.9), 0 1px 2px rgba(16,32,64,.06), 0 8px 22px rgba(40,70,140,.10);
+  --pop-shadow:0 12px 44px rgba(16,32,64,.22), 0 0 0 .5px var(--sep);
+  color-scheme:light;
+}
+:root[data-theme="dark"] {
+  --bg:#0B0D14;
+  --page-bg:radial-gradient(100% 55% at 0% 0%, #163061 0%, rgba(22,48,97,0) 70%) fixed, #0B0D14;
+  --card:rgba(255,255,255,.065); --pop:#1A2030;
+  --bar:rgba(11,13,20,.70);
+  --label:#FFFFFF; --label2:rgba(232,238,255,.70); --label3:rgba(232,238,255,.40);
+  --sep:rgba(255,255,255,.10); --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.14);
+  --field:rgba(0,0,0,.28); --field-edge:rgba(255,255,255,.09);
+  --seg:rgba(255,255,255,.18);
+  --blue:#0A84FF; --red:#FF453A; --orange:#FF9F0A; --green:#30D158; --indigo:#5E5CE6; --teal:#40C8E0; --purple:#BF5AF2; --gray:#98989D;
+  --shadow:inset 0 0 0 1px rgba(255,255,255,.08), 0 8px 24px rgba(0,0,0,.25);
+  --pop-shadow:0 12px 44px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+  color-scheme:dark;
+}
+
+/* не зависят от темы */
+:root {
+  --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono:ui-monospace, "SF Mono", Consolas, monospace;
+  --tint:color-mix(in srgb, var(--blue) 14%, transparent);   /* мягкий голубой: выбранный пункт, метки, вкладки */
+  --ring:0 0 0 3px color-mix(in srgb, var(--blue) 38%, transparent);   /* обводка фокуса */
+  --r-sm:8px; --r:10px; --r-md:12px; --r-lg:14px; --r-xl:18px;      /* скругления */
+  --ease:cubic-bezier(.2,.8,.2,1);                                  /* спокойное торможение, 0,2–0,3 с */
+  /* каркас страницы: содержимое шириной --wide по центру, слева колонка --side */
+  --top:52px; --wide:1180px; --side:256px; --gut:24px;
+  --pad:max(var(--gut), calc(50% - var(--wide) / 2 + var(--gut)));
+}

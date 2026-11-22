@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qural</title>
+<link rel="stylesheet" href="glasswise/tokens.css">
+<link rel="stylesheet" href="glasswise/components.css">
+<link rel="stylesheet" href="app.css">
+<script>window.GW_OPTIONS = { themeKey: 'qr-theme' };</script>
+<script src="glasswise/glasswise.js"></script>
+</head>
+<body class="gw">
+<header class="gw-top" data-bar-top>
+  <span class="gw-brand"><i class="qr-logo"><svg viewBox="0 0 100 100" aria-hidden="true">
+    <rect x="12.5" y="6" width="13" height="88" rx="6.5" fill="var(--gray)" opacity=".35"/><rect x="12.5" y="62" width="13" height="32" rx="6.5" fill="var(--gray)"/><circle cx="19" cy="62" r="15" fill="var(--gray)"/><circle cx="19" cy="62" r="5" fill="#fff" opacity=".92"/>
+    <rect x="43.5" y="6" width="13" height="88" rx="6.5" fill="var(--blue)" opacity=".35"/><rect x="43.5" y="30" width="13" height="64" rx="6.5" fill="var(--blue)"/><circle cx="50" cy="30" r="15" fill="var(--blue)"/><circle cx="50" cy="30" r="5" fill="#fff" opacity=".92"/>
+    <rect x="74.5" y="6" width="13" height="88" rx="6.5" fill="var(--gray)" opacity=".35"/><rect x="74.5" y="50" width="13" height="44" rx="6.5" fill="var(--gray)"/><circle cx="81" cy="50" r="15" fill="var(--gray)"/><circle cx="81" cy="50" r="5" fill="#fff" opacity=".92"/>
+  </svg></i><span>Qural</span></span>
+  <div class="gw-end">
+    <button class="gw-circle" id="themeBtn" title="Тема" aria-haspopup="menu"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1.5v11a5.5 5.5 0 010-11z"/></svg></button>
+    <span class="qr-winbtns">
+      <button class="gw-ib" data-win="min" title="Свернуть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.5 8h9"/></svg></button>
+      <button class="gw-ib" data-win="max" id="maxBtn" title="Развернуть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="3.5" width="9" height="9" rx="1.8"/></svg></button>
+      <button class="gw-ib qr-close" data-win="close" title="Закрыть (Qural останется в трее)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </span>
+  </div>
+</header>
+
+<div class="qr-shell">
+  <!-- ═════════════ МЕНЮ СЛЕВА ═════════════ -->
+  <aside class="qr-side" data-bar>
+    <nav class="gw-nav qr-nav" id="side" data-seg="side" data-seg-tint></nav>
+  </aside>
+
+  <main class="qr-content">
+
+  <!-- ═════════════ ПЕРВЫЙ ЗАПУСК ═════════════ -->
+  <section class="qr-view qr-welcome" id="view-welcome" hidden>
+    <h1 class="gw-h1">Добро пожаловать в Qural</h1>
+    <p class="gw-sub">Выберите, что включить. Всё это можно поменять потом — на главной или в «Общих».</p>
+    <div class="qr-wgrid" id="w-mods"></div>
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Запускать вместе с Windows<small>Тихо, иконкой в трее — горячие клавиши работают сразу</small></span><span class="gw-switch"><input type="checkbox" id="w-auto" checked></span></label>
+      </div>
+    </div>
+    <div class="qr-wfoot"><button class="gw-btn main" id="w-go">Начать</button></div>
+  </section>
+
+  <!-- ═════════════ ГЛАВНАЯ ═════════════ -->
+  <section class="qr-view" id="view-home" hidden>
+    <h1 class="gw-h1">Главная</h1>
+    <p class="gw-sub">Qural (Құрал — «инструмент»): цвет мониторов и громкость программ по горячим клавишам.</p>
+    <div class="qr-modgrid" id="h-modules"></div>
+    <div class="gw-sec">Быстрые действия</div>
+    <div class="gw-card"><div class="gw-row qr-quick" id="h-quick"></div></div>
+    <div class="gw-sec">Сочетания клавиш <span class="qr-conflicts" id="h-conflicts"></span></div>
+    <ul class="gw-list qr-keys" id="h-keys"></ul>
+  </section>
+
+  <!-- ═════════════ ЦВЕТ: инструмент ═════════════ -->
+  <section class="qr-view" id="view-color" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.6"/><path d="M6 13.5h4M8 11v2.5"/></svg></span>
+      <div class="qr-title"><h1 class="gw-h1">Цвет</h1><p class="gw-sub">Профили цвета мониторов: яркость, контраст, гамма, цифровая интенсивность, оттенок</p></div>
+    </div>
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Включить «Цвет»<small>Выключено — клавиши цвета не работают, мониторы возвращаются к стандартным значениям</small></span><span class="gw-switch"><input type="checkbox" data-module="color"></span></label>
+      </div>
+    </div>
+    <div class="gw-sec">Профили <button class="gw-link" id="c-addBtn2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>Добавить</button></div>
+    <ul class="gw-list qr-pick" id="c-list"></ul>
+    <div class="gw-sec">Для всех профилей</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt">
+          <span>Следующий профиль цвета<small>По кругу</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="c-nKey" data-target="next"></button><button class="gw-ib" id="c-nKeyClear" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+        <label class="gw-opt"><span>Показывать название при переключении<small>Надпись на секунду посреди экрана</small></span><span class="gw-switch"><input type="checkbox" id="c-osd"></span></label>
+        <button class="gw-opt qr-optbtn" id="c-resetAll"><span>Сбросить все мониторы к стандартным<small>Профили не меняются</small></span><svg class="qr-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════ ЦВЕТ: профиль ═════════════ -->
+  <section class="qr-view" id="view-cprofile" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.6"/><path d="M6 13.5h4M8 11v2.5"/></svg></span>
+      <div class="qr-title">
+        <h1 class="gw-h1" id="c-pName">&nbsp;</h1>
+        <p class="gw-sub">Профиль цвета · изменения применяются сразу и сохраняются сами</p>
+      </div>
+      <div class="gw-row qr-tools">
+        <button class="gw-ib" id="c-renameBtn" title="Переименовать"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg></button>
+        <button class="gw-ib" id="c-copyBtn" title="Сделать копию"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="2"/><path d="M10.5 3.5v-.3a1.2 1.2 0 00-1.2-1.2H3.7a1.2 1.2 0 00-1.2 1.2v5.6a1.2 1.2 0 001.2 1.2h.3"/></svg></button>
+        <button class="gw-ib" id="c-upBtn" title="Выше в списке"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5L8 6l3.5 3.5"/></svg></button>
+        <button class="gw-ib" id="c-downBtn" title="Ниже в списке"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5L8 10l3.5-3.5"/></svg></button>
+        <button class="gw-ib del" id="c-delBtn" title="Удалить профиль"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></svg></button>
+      </div>
+    </div>
+    <div class="gw-card qr-info qr-gap" data-offnote="color" hidden><p><span class="gw-chip gray">выключен</span> «Цвет» выключен: настройки сохраняются, но на мониторы не идут. Включить можно на странице «Цвет» или на главной.</p></div>
+
+    <div class="gw-sec">Горячая клавиша</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt">
+          <span>Включить этот профиль<small>Щёлкните по полю и нажмите сочетание. Esc — отмена, Backspace — убрать</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="c-pKey" data-target="profile"></button><button class="gw-ib" id="c-pKeyClear" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gw-sec">Мониторы</div>
+    <div class="gw-seg qr-tabs" id="c-monTabs" data-seg="c-monitors"></div>
+    <div class="gw-card qr-mon" id="c-monCard">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Менять этот монитор<small>Выключено — при переключении на этот профиль монитор не трогается</small></span><span class="gw-switch"><input type="checkbox" id="c-monOn"></span></label>
+      </div>
+      <div id="c-sliders"></div>
+      <div class="qr-foot">
+        <span class="gw-sub" id="c-nvNote" hidden>Драйвер NVIDIA недоступен — интенсивность и оттенок не меняются.</span>
+        <span class="gw-sub">Двойной щелчок по ползунку — стандартное значение.</span>
+        <button class="gw-pill" id="c-resetMon">Сбросить значения</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════ ЗВУК: инструмент ═════════════ -->
+  <section class="qr-view" id="view-sound" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6v4h2.5l3.5 3V3L5 6z"/><path d="M11 5.5a3.5 3.5 0 010 5M12.8 3.8a6 6 0 010 8.4"/></svg></span>
+      <div class="qr-title"><h1 class="gw-h1">Звук</h1><p class="gw-sub">Громкость программ из микшера: громче, тише, без звука — своими клавишами</p></div>
+    </div>
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Включить «Звук»<small>Выключено — клавиши звука не работают</small></span><span class="gw-switch"><input type="checkbox" data-module="sound"></span></label>
+      </div>
+    </div>
+    <div class="gw-sec">Программы <button class="gw-link" id="s-addBtn2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>Добавить</button></div>
+    <ul class="gw-list qr-pick" id="s-list"></ul>
+    <div class="gw-card qr-info qr-gap2" id="s-fallbackCard" hidden>
+      <p><span class="gw-chip orange">Запасной способ</span> Windows не дала доступ к основному ползунку программы в микшере, поэтому меняется громкость её каналов. Звук тише и громче, но ползунок в микшере Windows не двигается.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════ ЗВУК: программа / активное окно ═════════════ -->
+  <section class="qr-view" id="view-sapp" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon" id="s-aIcon"></span>
+      <div class="qr-title">
+        <h1 class="gw-h1" id="s-aTitle"></h1>
+        <p class="gw-sub" id="s-aSub"></p>
+      </div>
+      <button class="gw-ib del" id="s-removeBtn" title="Убрать из списка"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></svg></button>
+    </div>
+    <div class="gw-card qr-info qr-gap" data-offnote="sound" hidden><p><span class="gw-chip gray">выключен</span> «Звук» выключен: клавиши не работают. Включить можно на странице «Звук» или на главной.</p></div>
+
+    <div id="s-focusInfo" class="gw-card qr-info qr-gap" hidden>
+      <p>Клавиши меняют громкость программы, окно которой сейчас в фокусе: браузер, игра, плеер — что угодно.</p>
+      <p>Программы, у которых есть своя строка в списке, этими клавишами не меняются — для них работают только их собственные клавиши.</p>
+    </div>
+
+    <div id="s-touchedBlock" hidden>
+      <div class="gw-sec">Изменены через «Активное окно»</div>
+      <ul class="gw-list qr-touched" id="s-touched"></ul>
+      <p class="gw-sub qr-note">Здесь видно, какую громкость вы оставили программам этими клавишами. «100%» возвращает как было; «⋯» — сделать программу отдельной строкой со своими клавишами или убрать из списка.</p>
+    </div>
+
+    <div id="s-liveBlock">
+      <div class="gw-sec">Громкость сейчас</div>
+      <div class="gw-card">
+        <div class="qr-row qr-live">
+          <button class="gw-ib" id="s-muteBtn" title="Без звука / вернуть"></button>
+          <input type="range" class="qr-range" id="s-volRange" min="0" max="100" step="1">
+          <output id="s-volOut"></output>
+        </div>
+        <p class="gw-sub qr-note" id="s-notRunning" hidden>Программа сейчас не воспроизводит звук. Клавиши заработают, как только она его включит — перезапускать ничего не нужно.</p>
+      </div>
+    </div>
+
+    <div class="gw-sec">Горячие клавиши</div>
+    <div class="gw-card">
+      <div class="gw-grp" id="s-keys"></div>
+      <p class="gw-sub qr-note">Щёлкните по полю и нажмите сочетание. Esc — отмена, Backspace — убрать.</p>
+    </div>
+
+    <div class="gw-sec">Шаг</div>
+    <div class="gw-card">
+      <div class="qr-row">
+        <span class="qr-label">За одно нажатие</span>
+        <input type="range" class="qr-range" id="s-stepRange" min="1" max="25" step="1">
+        <output id="s-stepOut"></output>
+      </div>
+      <div class="qr-presets gw-row" id="s-presets"></div>
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Удерживать клавишу — менять дальше<small>Выключено — одно нажатие, один шаг</small></span><span class="gw-switch"><input type="checkbox" id="s-repeat"></span></label>
+      </div>
+    </div>
+
+    <div id="s-namesBlock">
+      <div class="gw-sec">Имена exe</div>
+      <div class="gw-card">
+        <div class="gw-row qr-names" id="s-names"></div>
+        <form id="s-nameForm" class="qr-manual qr-nameform">
+          <input class="gw-field" id="s-nameInput" placeholder="Ещё одно имя, например game_dx12.exe" autocomplete="off">
+          <button type="submit" class="gw-pill">Добавить</button>
+        </form>
+        <p class="gw-sub qr-note">Клавиши меняют громкость у всех этих exe сразу. Пригодится, если у игры несколько вариантов запуска или после обновления сменилось имя файла.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════ СКРИНШОТЫ ═════════════ -->
+  <section class="qr-view" id="view-shot" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5v-2a1 1 0 011-1h2M10.5 2.5h2a1 1 0 011 1v2M13.5 10.5v2a1 1 0 01-1 1h-2M5.5 13.5h-2a1 1 0 01-1-1v-2"/><circle cx="8" cy="8" r="2.2"/></svg></span>
+      <div class="qr-title"><h1 class="gw-h1">Скриншоты</h1><p class="gw-sub">Выделить область, нарисовать поверх, скопировать или сохранить</p></div>
+      <button class="gw-btn main" id="sh-take">Сделать скриншот</button>
+    </div>
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Включить «Скриншоты»<small>Выключено — клавиши скриншотов не работают и не заняты</small></span><span class="gw-switch"><input type="checkbox" data-module="shot"></span></label>
+      </div>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="sh-lightshot" hidden><p><span class="gw-chip orange">Lightshot</span> Запущен Lightshot — он держит PrtSc. Закройте его (правый щелчок по значку в трее → Выход) и уберите из автозапуска, иначе клавиша достанется ему.</p></div>
+    <div class="gw-card qr-info qr-gap" id="sh-snip" hidden><p><span class="gw-chip orange">Ножницы</span> В Windows 11 клавиша PrtSc может открывать «Ножницы». Если так происходит, выключите в параметрах «Открывать „Ножницы“ клавишей Print Screen».</p><div class="gw-row"><button class="gw-pill" id="sh-snipBtn">Открыть параметры клавиатуры</button></div></div>
+
+    <div class="gw-sec">Горячие клавиши</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt">
+          <span>Выделить область<small>Рамка, рисование, копирование и сохранение</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="sh-kRegion" data-target="region"></button><button class="gw-ib" data-clear="region" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+        <div class="gw-opt">
+          <span>Весь экран сразу<small>Монитор под курсором — в папку и в буфер обмена</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="sh-kFull" data-target="full"></button><button class="gw-ib" data-clear="full" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+        <div class="gw-opt">
+          <span>Окно сразу<small>Окно в фокусе — в папку и в буфер обмена</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="sh-kWindow" data-target="window"></button><button class="gw-ib" data-clear="window" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+      </div>
+      <p class="gw-sub qr-note">Щёлкните по полю и нажмите сочетание. Esc — отмена, Backspace — убрать.</p>
+    </div>
+
+    <div class="gw-sec">Сохранение</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt">
+          <span>Папка<small id="sh-folder"></small></span>
+          <span class="gw-row"><button class="gw-pill" id="sh-open">Открыть</button><button class="gw-pill" id="sh-pick">Выбрать…</button><button class="gw-pill" id="sh-reset" hidden>По умолчанию</button></span>
+        </div>
+        <button class="gw-opt qr-optbtn" id="sh-formatBtn" aria-haspopup="menu"><span>Формат<small>Для «Сохранить» и быстрых снимков</small></span><span class="gw-v" id="sh-formatV"></span></button>
+        <div class="gw-opt" id="sh-qualityRow">
+          <span>Качество JPG</span>
+          <span class="qr-inl"><input type="range" class="qr-range" id="sh-quality" min="10" max="100" step="5"><output id="sh-qualityOut"></output></span>
+        </div>
+        <label class="gw-opt"><span>Спрашивать имя и папку<small>Выключено — «Сохранить» сразу кладёт файл в папку</small></span><span class="gw-switch"><input type="checkbox" id="sh-ask"></span></label>
+      </div>
+    </div>
+
+    <div class="gw-sec">Снимок</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Курсор на скриншоте</span><span class="gw-switch"><input type="checkbox" id="sh-cursor"></span></label>
+        <label class="gw-opt"><span>Запоминать рамку<small>Следующий скриншот откроется с той же выделенной областью</small></span><span class="gw-switch"><input type="checkbox" id="sh-keep"></span></label>
+        <label class="gw-opt"><span>Уведомления<small>«Скопировано», «Сохранено» — щелчок по уведомлению открывает папку</small></span><span class="gw-switch"><input type="checkbox" id="sh-notify"></span></label>
+      </div>
+    </div>
+
+    <div class="gw-sec">Как пользоваться</div>
+    <div class="gw-card qr-info">
+      <p><b>Выделение.</b> Протяните мышью рамку. Щелчок без протягивания снимает окно под курсором. <b>Ctrl+A</b> — монитор под курсором, ещё раз — все мониторы. Рамку можно двигать и тянуть за края, стрелки сдвигают на 1 точку (с Shift — на 10, с Ctrl — меняют размер).</p>
+      <p><b>Рисование.</b> Карандаш, линия, стрелка, прямоугольник, окружность, маркер, текст, размытие, подсветка области и номера шагов — на панели рядом с рамкой. Колёсико мыши — толщина, Shift — ровные линии под 45° и ровные фигуры. Правый щелчок — выйти из инструмента.</p>
+      <p><b>Подсветка.</b> Обведите важное — всё остальное в рамке затемнится. Можно несколько мест.</p>
+      <p><b>Рука.</b> Двигает уже нарисованное: надписи, стрелки, фигуры. Квадратики по краям выбранного — растянуть: у надписи угол меняет размер шрифта (или колёсико мыши над выбранной надписью), у номера — размер круга. Двойной щелчок по надписи (или щелчок инструментом «Текст») — править её. Delete — удалить выбранное, стрелки — сдвинуть на 1 точку. Рамку выделения «Рукой» тоже можно тянуть за края.</p>
+      <p><b>Пипетка.</b> Пока рамки нет, рядом с курсором лупа с кодом цвета; <b>C</b> копирует код цвета.</p>
+      <p><b>Готово.</b> <b>Ctrl+C</b>, Enter или двойной щелчок — в буфер обмена, <b>Ctrl+S</b> — сохранить, <b>Ctrl+Z</b> — отменить шаг, <b>Esc</b> — закрыть.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════ ЗАПИСЬ ЭКРАНА ═════════════ -->
+  <section class="qr-view" id="view-rec" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="9.5" height="9" rx="1.6"/><path d="M11 7l3.5-2v6L11 9"/><circle cx="6.2" cy="8" r="1.6" fill="currentColor"/></svg></span>
+      <div class="qr-title"><h1 class="gw-h1">Запись экрана</h1><p class="gw-sub" id="rc-sub">Область, окно или весь экран — со звуком ПК и микрофоном</p></div>
+      <span class="gw-row qr-tools">
+        <button class="gw-pill" id="rc-pause" hidden>Пауза</button>
+        <button class="gw-btn main" id="rc-start" aria-haspopup="menu">Начать запись</button>
+      </span>
+    </div>
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Включить «Запись экрана»<small>Выключено — клавиши записи свободны</small></span><span class="gw-switch"><input type="checkbox" data-module="rec"></span></label>
+      </div>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="rc-noff" hidden><p><span class="gw-chip red">FFmpeg</span> Нет папки ffmpeg рядом с Qural.exe — запись не заработает. Пересоберите Qural.</p></div>
+
+    <div class="gw-sec">Горячие клавиши</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt">
+          <span>Начать / остановить<small>Начать — выбрать область или окно, Enter — запись</small></span>
+          <span class="qr-keywrap"><button class="qr-key" id="rc-kToggle" data-target="toggle"></button><button class="gw-ib" data-rclear="toggle" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+        <div class="gw-opt">
+          <span>Пауза / продолжить</span>
+          <span class="qr-keywrap"><button class="qr-key" id="rc-kPause" data-target="pause"></button><button class="gw-ib" data-rclear="pause" title="Убрать клавишу"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gw-sec">Видео</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <button class="gw-opt qr-optbtn" data-rmenu="codec"><span>Кодек<small id="rc-codecNote">Видеокарта кодирует сама — процессор почти не занят</small></span><span class="gw-v" id="rc-codecV"></span></button>
+        <button class="gw-opt qr-optbtn" data-rmenu="quality"><span>Качество</span><span class="gw-v" id="rc-qualityV"></span></button>
+        <div class="gw-opt" id="rc-bitrateRow"><span>Битрейт</span><span class="qr-inl"><input type="range" class="qr-range" id="rc-bitrate" min="2" max="80" step="1"><output id="rc-bitrateOut"></output></span></div>
+        <button class="gw-opt qr-optbtn" data-rmenu="fps"><span>Кадров в секунду</span><span class="gw-v" id="rc-fpsV"></span></button>
+        <button class="gw-opt qr-optbtn" data-rmenu="scale"><span>Размер<small>Уменьшение — тоже на видеокарте</small></span><span class="gw-v" id="rc-scaleV"></span></button>
+        <label class="gw-opt"><span>Курсор на записи</span><span class="gw-switch"><input type="checkbox" id="rc-cursor"></span></label>
+        <label class="gw-opt"><span>Отсчёт 3-2-1 перед записью</span><span class="gw-switch"><input type="checkbox" id="rc-countdown"></span></label>
+      </div>
+    </div>
+
+    <div class="gw-sec">Звук</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Звук ПК<small>Всё, что слышно в колонках или наушниках</small></span><span class="gw-switch"><input type="checkbox" id="rc-sys"></span></label>
+        <div class="gw-opt" id="rc-sysVolRow"><span>Громкость звука ПК</span><span class="qr-inl"><input type="range" class="qr-range" id="rc-sysVol" min="0" max="200" step="5"><output id="rc-sysVolOut"></output></span></div>
+        <label class="gw-opt"><span>Микрофон</span><span class="gw-switch"><input type="checkbox" id="rc-mic"></span></label>
+        <button class="gw-opt qr-optbtn" data-rmenu="micDevice" id="rc-micDevRow"><span>Какой микрофон</span><span class="gw-v" id="rc-micDevV"></span></button>
+        <div class="gw-opt" id="rc-micVolRow"><span>Громкость микрофона</span><span class="qr-inl"><input type="range" class="qr-range" id="rc-micVol" min="0" max="200" step="5"><output id="rc-micVolOut"></output></span></div>
+        <button class="gw-opt qr-optbtn" data-rmenu="noise" id="rc-noiseRow"><span>Шумоподавление микрофона<small>Убирает клавиатуру, гул, вентилятор. Можно поменять и в редакторе</small></span><span class="gw-v" id="rc-noiseV"></span></button>
+        <label class="gw-opt"><span>Две отдельные дорожки<small>Звук ПК и микрофон отдельно — для монтажа. Выключено — одна общая</small></span><span class="gw-switch"><input type="checkbox" id="rc-separate"></span></label>
+      </div>
+    </div>
+
+    <div class="gw-sec">Сохранение</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <div class="gw-opt"><span>Папка<small id="rc-folder"></small></span><span class="gw-row"><button class="gw-pill" id="rc-open">Открыть</button><button class="gw-pill" id="rc-pick">Выбрать…</button><button class="gw-pill" id="rc-reset" hidden>По умолчанию</button></span></div>
+        <button class="gw-opt qr-optbtn" data-rmenu="container"><span>Формат файла</span><span class="gw-v" id="rc-containerV"></span></button>
+        <button class="gw-opt qr-optbtn" data-rmenu="after"><span>После остановки</span><span class="gw-v" id="rc-afterV"></span></button>
+      </div>
+    </div>
+
+    <div class="gw-sec">Последние записи</div>
+    <ul class="gw-list" id="rc-sessions"></ul>
+    <p class="gw-sub qr-note">Здесь — 5 последних записей в исходном качестве: их можно снова открыть в редакторе и сохранить иначе.</p>
+
+    <div class="gw-sec">Как это работает</div>
+    <div class="gw-card qr-info">
+      <p><b>Нагрузка.</b> Картинку берёт Windows Graphics Capture и сразу отдаёт видеокарте, которая кодирует видео сама, — как в OBS. Процессор почти не занят, кадры не идут через обычную память.</p>
+      <p><b>Окно.</b> Щелчок по окну при выборе — записывается именно это окно, даже если его перекрыть другим.</p>
+      <p><b>Звук.</b> Звук ПК и микрофон пишутся без потерь отдельными дорожками; громкость и шумоподавление применяются при сохранении — их можно поменять в редакторе.</p>
+      <p><b>Пауза.</b> Панель записи сверху экрана: время, уровень звука, пауза и стоп. Её, рамки и отсчёта на записи нет.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════ ОБЩИЕ ═════════════ -->
+  <section class="qr-view" id="view-general" hidden>
+    <h1 class="gw-h1">Общие</h1>
+    <p class="gw-sub">Qural работает тихо в трее. Окно можно закрыть — горячие клавиши продолжат работать.</p>
+    <div class="gw-sec">Запуск и трей</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Запускать вместе с Windows<small>Только иконкой в трее, без окна</small></span><span class="gw-switch"><input type="checkbox" id="g-auto"></span></label>
+        <button class="gw-opt qr-optbtn" id="g-trayBtn" aria-haspopup="menu"><span>Щелчок по иконке в трее<small>Правый щелчок — всегда меню</small></span><span class="gw-v" id="g-trayV"></span></button>
+      </div>
+    </div>
+    <div class="gw-sec">Инструменты</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Цвет<small>Профили цвета мониторов</small></span><span class="gw-switch"><input type="checkbox" data-module="color"></span></label>
+        <label class="gw-opt"><span>Звук<small>Громкость программ по клавишам</small></span><span class="gw-switch"><input type="checkbox" data-module="sound"></span></label>
+        <label class="gw-opt"><span>Скриншоты<small>Область, окно, экран, рисование поверх</small></span><span class="gw-switch"><input type="checkbox" data-module="shot"></span></label>
+        <label class="gw-opt"><span>Запись экрана<small>Область, окно или экран со звуком и редактором</small></span><span class="gw-switch"><input type="checkbox" data-module="rec"></span></label>
+      </div>
+    </div>
+    <div class="gw-sec">Кнопки Ulanzi Deck и Stream Deck</div>
+    <div class="gw-card qr-info">
+      <p>Любую команду ниже можно повесить на кнопку деки, ярлык или задание планировщика — без горячих клавиш. В программе деки выберите действие запуска программы, путь — Qural.exe, параметры — из списка. Если Qural уже работает, команда выполнится сразу, а второй запуск тихо закроется.</p>
+      <div class="qr-cmdpath"><code id="g-exe"></code><button class="gw-pill" id="g-exeCopy">Копировать путь</button></div>
+      <p class="qr-gap2"><b>Проще всего — ярлыки.</b> Qural создаст по ярлыку на каждую команду ниже. В Ulanzi Studio перетащите на кнопку действие <b>Система → Open</b> и выберите нужный ярлык — параметры в нём уже есть.</p>
+      <div class="gw-row"><button class="gw-btn main" id="g-makeLinks">Создать ярлыки для деки</button><span class="gw-sub" id="g-linksDone"></span></div>
+    </div>
+    <ul class="gw-list qr-cmds qr-gap2" id="g-cmds"></ul>
+    <p class="gw-sub qr-note">«Копировать» берёт только параметры. Если деке нужна команда целиком, вставьте путь, пробел и параметры. Громкость: <code>up</code> / <code>down</code> — на шаг программы, <code>+10</code> / <code>-10</code> — на 10%, <code>50</code> — ровно 50%, <code>mute</code> — без звука / вернуть; вместо имени программы можно написать <code>active</code> — программа в фокусе.</p>
+
+    <div class="gw-sec">Как это работает</div>
+    <div class="gw-card qr-info">
+      <p><b>Цвет.</b> Цифровая интенсивность и оттенок задаются через драйвер NVIDIA, яркость, контраст и гамма — через гамма-таблицу Windows. После сна, блокировки и смены разрешения профиль применяется заново.</p>
+      <p id="g-nvNote" hidden><span class="gw-chip orange">NVIDIA</span> Драйвер NVIDIA недоступен — интенсивность и оттенок не меняются.</p>
+      <p><b>Звук.</b> Звук нужной программы ищется заново при каждом нажатии, по имени exe и на всех устройствах вывода, поэтому клавиши работают после перезагрузки ПК и перезапуска программ.</p>
+      <p><b>Горячие клавиши.</b> Клавиши цвета и звука проверяются вместе: одно сочетание не достанется двум действиям — при переназначении Qural скажет, у кого его забрал.</p>
+      <p><b>Нагрузка.</b> В фоне нет опросов и таймеров — Qural ждёт нажатия клавиш. Окно (WebView2) создаётся при открытии и полностью закрывается вместе с ним.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<!-- окна снизу -->
+<div class="gw-sheet" id="c-nameSheet" hidden>
+  <form class="gw-sh" id="c-nameForm">
+    <div class="gw-sh-head"><b id="c-nameTitle">Новый профиль</b><button type="button" class="gw-ib" data-close title="Закрыть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <label class="gw-label" for="c-nameInput">Название</label>
+    <input class="gw-field" id="c-nameInput" maxlength="40" autocomplete="off" placeholder="Например, «Игры»">
+    <div class="gw-sh-acts"><button type="button" class="gw-pill" data-close>Отмена</button><button type="submit" class="gw-pill main">Сохранить</button></div>
+  </form>
+</div>
+
+<div class="gw-sheet" id="s-addSheet" hidden>
+  <div class="gw-sh">
+    <div class="gw-sh-head"><b>Добавить программу</b><button type="button" class="gw-ib" data-close title="Закрыть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <p class="gw-sub">Сейчас в микшере Windows:</p>
+    <ul class="gw-list qr-sessions" id="s-sessions"></ul>
+    <form id="s-manualForm">
+      <label class="gw-label" for="s-manual">Или имя программы (exe)</label>
+      <div class="qr-manual"><input class="gw-field" id="s-manual" placeholder="Например, Discord или cs2.exe" autocomplete="off"><button type="submit" class="gw-pill main">Добавить</button></div>
+    </form>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script src="color.js"></script>
+<script src="sound.js"></script>
+<script src="shot.js"></script>
+<script src="rec.js"></script>
+<script src="home.js"></script>
+<script src="welcome.js"></script>
+</body>
+</html>

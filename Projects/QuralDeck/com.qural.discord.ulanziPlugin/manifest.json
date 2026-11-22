@@ -1,0 +1,48 @@
+{
+  "Version": "1.0.0",
+  "Author": "Qural",
+  "Name": "Qural — Discord",
+  "Description": "Статус голоса Discord на кнопке: обычный, микрофон заглушен, звук выключен. Нажатие — микрофон, долгое — звук.",
+  "Icon": "assets/action.png",
+  "Category": "Qural",
+  "CategoryIcon": "assets/action.png",
+  "CodePath": "plugin/app.js",
+  "Type": "JavaScript",
+  "SupportedInMultiActions": false,
+  "PrivateAPI": true,
+  "UUID": "com.qural.deck.discord",
+  "Actions": [
+    {
+      "Name": "Discord — голос",
+      "Icon": "assets/action.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [ { "Image": "assets/discord_offline.png" } ],
+      "Controllers": [ "Keypad", "Encoder" ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": { "Rotate": "Вправо — вернуть, влево — заглушить", "Push": "Микрофон / долго — звук", "Touch": "Микрофон" }
+      },
+      "Tooltip": "Обычный / микрофон заглушен / звук выключен. Нажатие — микрофон, долгое — звук",
+      "UUID": "com.qural.deck.discord.voice",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Discord — кто говорит",
+      "Icon": "assets/speak.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [ { "Image": "assets/speak.png" } ],
+      "Controllers": [ "Keypad", "Encoder" ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": { "Rotate": "Вправо — вернуть, влево — заглушить", "Push": "Микрофон / долго — звук", "Touch": "Микрофон" }
+      },
+      "Tooltip": "Аватар того, кто сейчас говорит в голосовом канале (зелёное кольцо), когда все молчат — участники канала. Нажатие — микрофон, долгое — звук",
+      "UUID": "com.qural.deck.discord.speaking",
+      "SupportedInMultiActions": false
+    }
+  ],
+  "OS": [ { "Platform": "windows", "MinimumVersion": "10" } ],
+  "Software": { "MinVersion": "2.1.4" }
+}

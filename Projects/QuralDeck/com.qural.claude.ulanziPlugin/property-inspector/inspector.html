@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — Claude</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 4px 10px 10px 122px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 320px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item hidden" id="ctxRow" type="select">
+        <div class="uspi-item-label">Контекст</div>
+        <select class="uspi-item-value" id="ctxwin">
+          <option value="">Определять сам</option>
+          <option value="200000">200 тыс. токенов</option>
+          <option value="1000000">1 млн токенов</option>
+        </select>
+      </div>
+      <div class="uspi-item hidden" id="showRow" type="select">
+        <div class="uspi-item-label">Показывать</div>
+        <select class="uspi-item-value" id="show">
+          <option value="all">Все вместе</option>
+          <option value="five">5 часов</option>
+          <option value="week">Неделя</option>
+          <option value="fable">Fable</option>
+          <option value="ctx">Контекст</option>
+        </select>
+      </div>
+      <div class="uspi-item hidden" id="styleRow" type="select">
+        <div class="uspi-item-label">Вид</div>
+        <select class="uspi-item-value" id="style">
+          <option value="char">Цифра и персонаж</option>
+          <option value="num">Только цифра</option>
+        </select>
+      </div>
+      <div class="uspi-item hidden" id="serverRow" type="select">
+        <div class="uspi-item-label">С сервера</div>
+        <select class="uspi-item-value" id="server">
+          <option value="on">Включено</option>
+          <option value="off">Выключено</option>
+        </select>
+      </div>
+      <div class="uspi-item hidden" id="keysRow">
+        <div class="uspi-item-label">Клавиши</div>
+        <input class="uspi-item-value" type="text" name="keys" id="keys" autocomplete="off" />
+      </div>
+    </form>
+    <p class="qr-note" id="note"></p>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script src="./inspector.js"></script>
+</body>
+</html>

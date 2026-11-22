@@ -1,0 +1,221 @@
+{
+  "Version": "1.0.0",
+  "Author": "Qural",
+  "Name": "Qural — Claude",
+  "Description": "Статус Claude и кнопки управления: разрешить, отклонить, стоп, новый чат, диктовка. Для клавиш нужен запущенный Qural.",
+  "Icon": "assets/plugin.png",
+  "Category": "Qural — Claude",
+  "CategoryIcon": "assets/plugin.png",
+  "CodePath": "plugin/app.js",
+  "Type": "JavaScript",
+  "SupportedInMultiActions": false,
+  "PrivateAPI": true,
+  "UUID": "com.qural.deck.claude",
+  "Actions": [
+    {
+      "Name": "Статус Claude",
+      "Icon": "assets/status_idle.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/status_offline.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Tooltip": "Что сейчас делает Claude. Кнопка — открыть окно Claude; крутилка — ещё и переключение сессий",
+      "UUID": "com.qural.deck.claude.status",
+      "SupportedInMultiActions": false,
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "Переключить сессию (Ctrl+Tab)",
+          "Push": "Открыть Claude",
+          "Touch": "Открыть Claude"
+        }
+      }
+    },
+    {
+      "Name": "Разрешить",
+      "Icon": "assets/allow_on.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/allow_off.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Разрешить запрос Claude",
+      "UUID": "com.qural.deck.claude.allow",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Отклонить",
+      "Icon": "assets/deny_on.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/deny_off.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Отклонить запрос Claude",
+      "UUID": "com.qural.deck.claude.deny",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Стоп",
+      "Icon": "assets/stop.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/stop.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Остановить ответ Claude (Esc)",
+      "UUID": "com.qural.deck.claude.stop",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Новый чат",
+      "Icon": "assets/newchat.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/newchat.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Новый разговор в Claude (Ctrl+N)",
+      "UUID": "com.qural.deck.claude.newchat",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Диктовка",
+      "Icon": "assets/dictation.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/dictation.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Включить или выключить диктовку в Claude (Ctrl+D)",
+      "UUID": "com.qural.deck.claude.dictation",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Браузер",
+      "Icon": "assets/browser.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/browser.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Показать или скрыть браузер в Claude (Ctrl+Shift+B)",
+      "UUID": "com.qural.deck.claude.browser",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Лимиты",
+      "Icon": "assets/plugin.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/plugin.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "5 часов / неделя",
+          "Push": "Обновить",
+          "Touch": "Обновить"
+        }
+      },
+      "Tooltip": "Сколько лимита плана израсходовано за 5 часов и за неделю",
+      "UUID": "com.qural.deck.claude.limits",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Разрешить / отклонить",
+      "Icon": "assets/dial_ask_on.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/dial_ask_off.png"
+        }
+      ],
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$UA1",
+        "TriggerDescription": {
+          "Rotate": "Вправо — разрешить, влево — отклонить",
+          "Push": "Открыть Claude",
+          "Touch": "Открыть Claude"
+        }
+      },
+      "Tooltip": "Крутилка: ответ на запрос разрешения Claude",
+      "UUID": "com.qural.deck.claude.ask",
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Часы",
+      "Icon": "assets/clock.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/clock.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Часы пиксельным шрифтом: время, день недели и дата",
+      "UUID": "com.qural.deck.claude.clock",
+      "SupportedInMultiActions": false
+    }
+  ],
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinVersion": "2.1.4"
+  }
+}
