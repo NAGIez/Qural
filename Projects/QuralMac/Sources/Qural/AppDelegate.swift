@@ -28,6 +28,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hk.register(id: 5, keyCode: kVK_ANSI_W, modifiers: m) { [weak self] in self?.recordWindow() }
 
         Recorder.shared.onChange = { [weak self] in self?.updateStatus() }
+
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        Log.write("запуск \(version), macOS \(ProcessInfo.processInfo.operatingSystemVersionString), значок: \(status.button != nil)")
+        // показать, что программа работает: значок может спрятаться за вырезом экрана, если строка меню заполнена
+        if !Prefs.d.bool(forKey: "launchedBefore") {
+            Prefs.d.set(true, forKey: "launchedBefore")
+            openSettings()
+        }
+        Toast.show("Qural работает — значок в строке меню · ⌃⌥S скриншот · ⌃⌥R запись")
+    }
+
+    /// Qural уже запущен и его открыли ещё раз (Finder, Launchpad, Spotlight) — показать настройки.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openSettings()
+        return false
     }
 
     // ── значок: обычный — видоискатель; идёт запись — красная точка и время ──

@@ -18,7 +18,29 @@ jobs:
         run: sw_vers && swift --version
       - name: Сборка
         run: bash Projects/QuralMac/build.sh
+      - name: Проверка запуска
+        run: |
+          open Projects/QuralMac/build/Qural.app
+          sleep 10
+          screencapture -x launch.png || true
+          log show --last 2m --predicate 'process == "Qural"' --style compact | tail -40 || true
+          cat ~/Library/Logs/Qural/qural.log 2>/dev/null || echo "журнала нет"
+          # мало, чтобы процесс жил: запись «запуск» в журнале значит, что программа дошла до значка и клавиш
+          if pgrep -x Qural > /dev/null && grep -q "запуск" ~/Library/Logs/Qural/qural.log 2>/dev/null; then
+            echo "Qural работает"
+          else
+            echo "Qural не запущен"
+            ls -t ~/Library/Logs/DiagnosticReports 2>/dev/null | head -5
+            for f in ~/Library/Logs/DiagnosticReports/Qural*; do [ -f "$f" ] && head -120 "$f"; done
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Qural-mac
           path: Projects/QuralMac/build/Qural-mac.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launch-screenshot
+          path: launch.png
+          if-no-files-found: ignore
