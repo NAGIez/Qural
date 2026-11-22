@@ -21,6 +21,8 @@ const isShot = a => a.uuid === SHOT_ACTION;
 const REC_ACTION = 'com.qural.deck.volume.rec';   // «Запись экрана»: начать / остановить или пауза
 const isRec = a => a.uuid === REC_ACTION;
 const isStatic = a => isShot(a) || isRec(a);     // картинка из manifest
+const HOLD_REC = 600; // мс — «Скриншот» дольше этого: запись экрана
+function shot(ctx, s) { if (pipeOk) toQural({ cmd: 'shot', id: ctx, value: s.mode }); else alert(ctx); }
 const SKIP_GAP = 350; // мс — один щелчок крутилки = один трек, даже если крутить быстро
 const [address = '127.0.0.1', port = '3906'] = process.argv.slice(2);
 const pluginDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,7 +43,10 @@ const ctxOf = j => j.uuid + '___' + j.key + '___' + j.actionid;
 function settingsOf(a) {
   const s = a.settings || {};
   if (isColor(a)) return { profile: (s.profile || 'next').trim() || 'next' };
-  if (isShot(a)) return { mode: ['region', 'full', 'window'].includes(s.mode) ? s.mode : 'region' };
+  if (isShot(a)) return {
+    mode: ['region', 'full', 'window'].includes(s.mode) ? s.mode : 'region',
+    hold: ['screen', 'region', 'window', 'off'].includes(s.hold) ? s.hold : 'screen',   // долгое нажатие — запись экрана
+  };
   if (isRec(a)) return { mode: ['region', 'screen', 'window'].includes(s.mode) ? s.mode : 'screen', press: s.press === 'pause' ? 'pause' : 'toggle' };
   return {
     app: (s.app || 'active').trim() || 'active',
@@ -111,7 +116,18 @@ function onHost(d) {
       if (d.param && Object.keys(d.param).length) a.settings = d.param;
       const s = settingsOf(a);
       if (isColor(a)) { color(ctx, s.profile); break; }
-      if (isStatic(a)) { if (pipeOk) toQural({ cmd: 'shot', id: ctx, value: s.mode }); else alert(ctx); break; }
+      if (isShot(a)) {
+        // короткое нажатие — скриншот (по отпусканию), долгое — начать / остановить запись экрана
+        if (s.hold === 'off') { shot(ctx, s); break; }
+        a.down = true; a.holdFired = false;
+        clearTimeout(a.holdTimer);
+        a.holdTimer = setTimeout(() => {
+          a.holdFired = true;
+          log('shot hold → rec', s.hold);
+          if (pipeOk) toQural({ cmd: 'rec', id: ctx, value: 'toggle', mode: s.hold }); else alert(ctx);
+        }, HOLD_REC);
+        break;
+      }
       if (isRec(a)) { log('rec key', s.press, s.mode); if (pipeOk) toQural({ cmd: 'rec', id: ctx, value: s.press, mode: s.mode }); else alert(ctx); break; }
       if (isMedia(a)) { holdLike(ctx, a); break; }   // нажатия считаем по отпусканию; долгое — лайк
       if (isStats(a)) break;   // «Нагрузка ПК» только показывает — нажатие ничего не делает
@@ -119,6 +135,12 @@ function onHost(d) {
       break;
     }
     case 'keyup':
+      if (isShot(a)) {
+        clearTimeout(a.holdTimer);
+        if (a.down && !a.holdFired) shot(ctx, settingsOf(a));
+        a.down = false; a.holdFired = false;
+        break;
+      }
       if (isMedia(a)) { clearTimeout(a.likeTimer); if (!a.likeFired && a.down) clicks(ctx, a); a.likeFired = false; a.down = false; }
       break;
     case 'dialdown':
