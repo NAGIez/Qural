@@ -1,7 +1,6 @@
 import AppKit
 
-// Плашки вверху экрана: уведомление (Toast) и отсчёт перед записью (Countdown).
-// Обе не попадают на скриншоты и в запись (sharingType = .none) и не забирают фокус.
+// Плашка-уведомление вверху экрана (Toast). Не попадает на скриншоты (sharingType = .none) и не забирает фокус.
 
 @MainActor
 private func makePanel(size: CGSize, on screen: NSScreen, top: CGFloat = 14) -> NSPanel {
@@ -76,101 +75,6 @@ private final class ToastView: NSView {
             (action as NSString).draw(at: CGPoint(x: 20 + w, y: (bounds.height - h) / 2),
                                       withAttributes: [.font: font, .foregroundColor: NSColor.systemBlue])
         }
-    }
-
-    override func mouseDown(with event: NSEvent) { onClick?() }
-}
-
-// ── отсчёт перед записью: «● Запись через 3», полоска тает за 3 секунды; щелчок — отмена ──
-@MainActor
-final class Countdown {
-    private static var current: Countdown?
-    private let panel: NSPanel
-    private let view: CountdownView
-    private var timer: Timer?
-    private let start = Date()
-    private let done: () -> Void
-
-    static var active: Bool { current != nil }
-
-    static func show(on screen: NSScreen, _ done: @escaping () -> Void) {
-        current?.cancel()
-        current = Countdown(screen: screen, done: done)
-    }
-
-    static func cancelActive() { current?.cancel() }
-
-    private init(screen: NSScreen, done: @escaping () -> Void) {
-        self.done = done
-        let size = CGSize(width: 300, height: 58)
-        panel = makePanel(size: size, on: screen, top: 10)
-        view = CountdownView(frame: CGRect(origin: .zero, size: size))
-        panel.contentView = view
-        view.onClick = { [weak self] in self?.cancel() }
-        panel.orderFrontRegardless()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        tick()
-    }
-
-    private func tick() {
-        let t = Date().timeIntervalSince(start)
-        if t >= 3 { finish(run: true); return }
-        view.t = t
-        view.needsDisplay = true
-    }
-
-    private func cancel() { finish(run: false) }
-
-    private func finish(run: Bool) {
-        timer?.invalidate(); timer = nil
-        panel.orderOut(nil)
-        if Countdown.current === self { Countdown.current = nil }
-        if run { done() }
-    }
-}
-
-private final class CountdownView: NSView {
-    var t: TimeInterval = 0
-    var onClick: (() -> Void)?
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let card = bounds.insetBy(dx: 0.5, dy: 0.5)
-        pill(ctx, card)
-        // полоска снизу тает справа налево
-        ctx.saveGState()
-        ctx.addPath(CGPath(roundedRect: card, cornerWidth: card.height / 2.8, cornerHeight: card.height / 2.8, transform: nil))
-        ctx.clip()
-        ctx.setFillColor(NSColor(white: 1, alpha: 0.15).cgColor)
-        ctx.fill(CGRect(x: card.minX, y: card.minY, width: card.width, height: 3))
-        ctx.setFillColor(NSColor.systemRed.cgColor)
-        ctx.fill(CGRect(x: card.minX, y: card.minY, width: card.width * CGFloat(max(0, 1 - t / 3)), height: 3))
-        ctx.restoreGState()
-        // пульсирующая точка
-        let ph = CGFloat((sin(t * .pi * 2 - .pi / 2) + 1) / 2)
-        let c = CGPoint(x: 26, y: bounds.midY + 1)
-        let halo = 9 + 6 * ph
-        ctx.setFillColor(NSColor.systemRed.withAlphaComponent(0.08 + 0.27 * (1 - ph)).cgColor)
-        ctx.fillEllipse(in: CGRect(x: c.x - halo, y: c.y - halo, width: halo * 2, height: halo * 2))
-        ctx.setFillColor(NSColor.systemRed.cgColor)
-        ctx.fillEllipse(in: CGRect(x: c.x - 6, y: c.y - 6, width: 12, height: 12))
-        // подписи
-        ("Запись через" as NSString).draw(at: CGPoint(x: 46, y: 28), withAttributes: [
-            .font: NSFont.systemFont(ofSize: 15, weight: .semibold), .foregroundColor: NSColor.white])
-        ("щелчок — отмена" as NSString).draw(at: CGPoint(x: 47, y: 11), withAttributes: [
-            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor(white: 1, alpha: 0.6)])
-        // цифра справа «подпрыгивает» на каждой секунде
-        let n = max(1, 3 - Int(t))
-        let inSec = CGFloat(t - floor(t))
-        let k = 1 - min(1, inSec / 0.35)
-        let pop: CGFloat = t < 1 ? 1 : 1 + 0.28 * k * k
-        let font = NSFont.systemFont(ofSize: 28 * pop, weight: .bold)
-        let s = "\(n)" as NSString
-        let a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor(white: 1, alpha: min(1, 0.55 + inSec * 3))]
-        let sz = s.size(withAttributes: a)
-        s.draw(at: CGPoint(x: bounds.maxX - 40 - sz.width / 2, y: bounds.midY - sz.height / 2 + 1), withAttributes: a)
     }
 
     override func mouseDown(with event: NSEvent) { onClick?() }

@@ -13,9 +13,11 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.1</string>
+    <string>0.2.0</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>ru</string>
     <key>LSMinimumSystemVersion</key>
@@ -24,9 +26,7 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Qural записывает голос с микрофона вместе с экраном — только если это включено в настройках.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Qural снимает скриншоты и записывает экран.</string>
+    <string>Qural снимает скриншоты.</string>
 </dict>
 </plist>

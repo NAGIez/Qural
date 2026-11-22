@@ -7,12 +7,7 @@ struct SettingsView: View {
     @AppStorage("shotFormat") private var shotFormat = "png"
     @AppStorage("shotCursor") private var shotCursor = false
     @AppStorage("copyOnSave") private var copyOnSave = true
-    @AppStorage("sysAudio") private var sysAudio = true
-    @AppStorage("mic") private var mic = false
-    @AppStorage("codec") private var codec = "hevc"
-    @AppStorage("fps") private var fps = 30
-    @AppStorage("cursor") private var cursor = true
-    @AppStorage("countdown") private var countdown = true
+    @AppStorage("highlightBlur") private var highlightBlur = false
     @State private var login = SMAppService.mainApp.status == .enabled
     @State private var loginError = ""
 
@@ -25,49 +20,35 @@ struct SettingsView: View {
                 }
                 Toggle("Курсор на скриншоте", isOn: $shotCursor)
                 Toggle("При сохранении ещё и копировать в буфер", isOn: $copyOnSave)
+                Picker("Подсветка области", selection: $highlightBlur) {
+                    Text("Затемнять вокруг").tag(false)
+                    Text("Размывать вокруг").tag(true)
+                }
                 LabeledContent("Папка") {
-                    Button("Открыть") { openDir(Prefs.shotsDir) }
-                }
-            }
-            Section("Запись экрана") {
-                Toggle("Звук системы", isOn: $sysAudio)
-                Toggle("Микрофон", isOn: $mic)
-                Picker("Кодек", selection: $codec) {
-                    Text("HEVC (H.265) — меньше файл").tag("hevc")
-                    Text("H.264 — открывается везде").tag("h264")
-                }
-                Picker("Кадров в секунду", selection: $fps) {
-                    Text("24").tag(24)
-                    Text("30").tag(30)
-                    Text("60").tag(60)
-                }
-                Toggle("Курсор на записи", isOn: $cursor)
-                Toggle("Отсчёт 3-2-1 перед записью", isOn: $countdown)
-                LabeledContent("Папка") {
-                    Button("Открыть") { openDir(Prefs.videosDir) }
+                    Button("Открыть") {
+                        try? FileManager.default.createDirectory(at: Prefs.shotsDir, withIntermediateDirectories: true)
+                        NSWorkspace.shared.open(Prefs.shotsDir)
+                    }
                 }
             }
             Section("Горячие клавиши") {
                 LabeledContent("Скриншот области", value: "⌃⌥S")
-                LabeledContent("Скриншот экрана", value: "⌃⌥F")
-                LabeledContent("Записать экран / остановить", value: "⌃⌥R")
-                LabeledContent("Записать область", value: "⌃⌥A")
-                LabeledContent("Записать окно", value: "⌃⌥W")
-                Text("В окне скриншота: ⌘C или Enter — скопировать, ⌘S — сохранить, ⌘Z — отменить, Esc — закрыть.")
+                LabeledContent("Скриншот экрана — сразу в папку", value: "⌃⌥F")
+                Text("В окне скриншота: щелчок — окно под курсором или весь экран; ⌘C или Enter — скопировать, ⌘S — сохранить, "
+                     + "⌘Z — отменить, C — скопировать цвет под курсором, колёсико — толщина / размер шрифта, Esc — закрыть. "
+                     + "«Рука»: перетащить пометку, ручки — размер, двойной щелчок по тексту — править, Delete — удалить.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section {
                 Toggle("Запускать при входе в систему", isOn: Binding(get: { login }, set: setLogin))
                 if !loginError.isEmpty { Text(loginError).font(.footnote).foregroundStyle(.red) }
+                LabeledContent("Журнал") {
+                    Button("Показать") { NSWorkspace.shared.activateFileViewerSelecting([Log.url]) }
+                }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 620)
-    }
-
-    private func openDir(_ dir: URL) {
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(dir)
+        .frame(width: 480, height: 520)
     }
 
     private func setLogin(_ on: Bool) {

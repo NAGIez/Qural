@@ -14,13 +14,17 @@ final class HotKeys {
     private var refs: [EventHotKeyRef] = []
     private var installed = false
 
-    func register(id: UInt32, keyCode: Int, modifiers: UInt32, _ action: @escaping () -> Void) {
+    /// false — сочетание уже занято (другой программой или системой).
+    @discardableResult
+    func register(id: UInt32, keyCode: Int, modifiers: UInt32, _ action: @escaping () -> Void) -> Bool {
         install()
         handlers[id] = action
         var ref: EventHotKeyRef?
         let hk = EventHotKeyID(signature: OSType(0x5152_4C31) /* 'QRL1' */, id: id)
         let err = RegisterEventHotKey(UInt32(keyCode), modifiers, hk, GetApplicationEventTarget(), 0, &ref)
-        if err == noErr, let ref { refs.append(ref) }
+        if err == noErr, let ref { refs.append(ref); return true }
+        Log.write("горячая клавиша \(id): не удалось занять (\(err))")
+        return false
     }
 
     fileprivate func fire(_ id: UInt32) { handlers[id]?() }
