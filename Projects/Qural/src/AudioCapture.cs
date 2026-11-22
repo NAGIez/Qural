@@ -131,6 +131,7 @@ namespace Qural
         Thread thread;
         volatile bool running;
         public volatile float Peak;      // уровень для индикатора, 0–1
+        public float TakePeak() { float p = Peak; Peak = 0; return p; }
         public volatile bool Muted;      // выключили во время записи — пишем тишину, дорожка не прерывается
         public string Error;             // не удалось открыть устройство
         public string DeviceName;
@@ -274,7 +275,8 @@ namespace Qural
                 float v = Math.Abs(BitConverter.ToSingle(b, i));
                 if (v > peak) peak = v;
             }
-            Peak = Math.Min(1f, peak);
+            // самый громкий пакет с прошлого взгляда индикатора (TakePeak) — короткие пики не теряются
+            float cur = Peak; if (peak > cur) Peak = Math.Min(1f, peak);
         }
 
         static void Check(int hr) { if (hr < 0) Marshal.ThrowExceptionForHR(hr); }

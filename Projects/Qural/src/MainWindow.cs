@@ -235,6 +235,7 @@ namespace Qural
                     SendSound();
                     SendShot();
                     SendRec();
+                    UpdateChanged();
                     UpdateLiveTimer();
                     break;
 
@@ -277,6 +278,17 @@ namespace Qural
                 case "autostart":
                     TrayApp.SetAutostart(Bool(m, "value"));
                     SendShell();
+                    break;
+
+                case "update":
+                    if (Str(m, "action") == "install") app.InstallUpdate();
+                    else if (Str(m, "action") == "page") { var r = Updater.Latest; if (r != null && r.Page.StartsWith("https://github.com/")) try { System.Diagnostics.Process.Start(r.Page); } catch (Exception) { } }
+                    else app.CheckUpdate();
+                    break;
+
+                case "updateAuto":
+                    app.General.NoUpdateCheck = !Bool(m, "value"); app.General.Save();
+                    UpdateChanged();
                     break;
 
                 case "welcome": // первый запуск: что включить
@@ -338,6 +350,19 @@ namespace Qural
         }
 
         public void ModulesChanged() { SendShell(); SendColor(); SendSound(); SendShot(); SendRec(); UpdateLiveTimer(); }
+
+        // обновления: состояние для раздела «Обновления» в «Общих»
+        public void UpdateChanged() { Post("shell", UpdateJson()); }
+        object UpdateJson()
+        {
+            var r = Updater.Latest;
+            return new
+            {
+                type = "update", current = Updater.CurrentText, state = Updater.State, error = Updater.Error, progress = Updater.Progress,
+                latest = r != null ? r.Version : "", page = r != null ? r.Page : "", installed = Updater.Installed, auto = !app.General.NoUpdateCheck,
+                checkedAt = Updater.CheckedAt == DateTime.MinValue ? "" : Updater.CheckedAt.ToString("d MMMM, HH:mm", new System.Globalization.CultureInfo("ru-RU"))
+            };
+        }
 
         void SendShell()
         {

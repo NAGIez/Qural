@@ -7,8 +7,8 @@ using Microsoft.Win32;
 
 [assembly: AssemblyTitle("Qural")]
 [assembly: AssemblyProduct("Qural")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
 
 namespace Qural
 {

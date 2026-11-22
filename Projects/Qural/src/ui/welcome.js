@@ -7,7 +7,7 @@
     { id: 'shot', title: 'Скриншоты', text: 'PrtSc — выделить область, нарисовать стрелки, текст, размытие, скопировать или сохранить' },
     { id: 'rec', title: 'Запись экрана', text: 'Область, окно или весь экран со звуком и шумоподавлением; редактор для обрезки' },
   ];
-  const on = { color: true, sound: true, shot: true, rec: true };
+  const on = { color: false, sound: false, shot: false, rec: false };   // по умолчанию ничего не выбрано — решает пользователь
 
   function render() {
     $('w-mods').innerHTML = MODS.map((m) =>

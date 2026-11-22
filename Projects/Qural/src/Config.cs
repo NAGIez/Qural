@@ -439,6 +439,8 @@ namespace Qural
         [DataMember] public string Page = "home";      // открытая страница окна: home / color / sound / general
         [DataMember] public bool ColorOff, SoundOff;   // инструмент выключен целиком
         [DataMember] public bool ShotOff, RecOff;
+        [DataMember] public bool NoUpdateCheck;        // не проверять обновления на GitHub
+        [DataMember] public string UpdateNotified;     // о какой версии уже напомнили в трее (второй раз не напоминаем)
         // Первый запуск: "pending" — окно спросит, какие инструменты включить. У старых настроек поля нет (null) — уже настроено.
         [DataMember] public string Setup;
 

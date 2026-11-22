@@ -77,7 +77,8 @@ namespace Qural
         public static string Noise(string mode)
         {
             if (mode == "rnn" && File.Exists(Path.Combine(Ff.Dir, "std.rnnn")))
-                return "arnndn=m=std.rnnn,aeval='if(isnan(val(0)),0,val(0))|if(isnan(val(1)),0,val(1))':c=same";
+                // arnndn иногда выдаёт NaN / бесконечность — кодер AAC на них падает; заменяем нулём, остальное — в пределах ±1
+                return "arnndn=m=std.rnnn,aeval='if(isnan(val(0))+isinf(val(0)),0,clip(val(0),-1,1))|if(isnan(val(1))+isinf(val(1)),0,clip(val(1),-1,1))':c=same";
             if (mode == "rnn" || mode == "fft") return "afftdn=nr=14:nf=-40:tn=1";
             return null;
         }
@@ -311,6 +312,7 @@ namespace Qural
             {
                 case "ready": ready = true; SendInit(); Prepare(); break;
                 case "noise": MakeNoisePreview(Str(m, "mode")); break;
+                case "log": RecLog.Write("редактор: " + Str(m, "text")); break;
                 case "export": Export(m); break;
                 case "cancel": if (job != null) try { if (!job.HasExited) job.Kill(); } catch (Exception) { } break;
                 case "openFolder": if (lastOut != null) try { Process.Start("explorer.exe", "/select,\"" + lastOut + "\""); } catch (Exception) { } break;
@@ -390,6 +392,8 @@ namespace Qural
             Post(new { type = "sources", video = b + "preview.mp4", sys = s.HasSys ? b + "sys.m4a" : null, mic = s.HasMic ? b + "mic.m4a" : null });
         }
 
+        readonly HashSet<string> noiseBusy = new HashSet<string>();
+
         // как будет звучать микрофон со шумоподавлением — готовим отдельный файл один раз
         void MakeNoisePreview(string mode)
         {
@@ -399,10 +403,18 @@ namespace Qural
             if (File.Exists(path)) { Post(new { type = "noiseReady", mode = mode, url = "https://" + MediaHost + "/" + file }); return; }
             int idx = s.HasSys ? 1 : 0;
             string nz = Exporter.Noise(mode);
+            lock (noiseBusy) if (!noiseBusy.Add(mode)) return;   // уже готовится — второй FFmpeg в тот же файл не запускаем
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                string err = RunWithProgress("-hide_banner -loglevel error -y -nostats -progress pipe:1 -i " + Ff.Q(s.Full) + " -map 0:a:" + idx + " -af " + Ff.Q(nz) + " -c:a aac -b:a 160k " + Ff.Q(path),
-                    s.Duration, p => PostUi(new { type = "noiseProgress", p = p }));
+                string args = "-hide_banner -loglevel error -y -nostats -progress pipe:1 -i " + Ff.Q(s.Full) + " -map 0:a:" + idx + " -af " + Ff.Q(nz) + " -c:a aac -b:a 160k " + Ff.Q(path);
+                string err = RunWithProgress(args, s.Duration, p => PostUi(new { type = "noiseProgress", p = p }));
+                if (err != null)
+                {
+                    // сбой бывает случайным — одна повторная попытка
+                    RecLog.Write("редактор: шумоподавление " + mode + " ошибка, ещё раз: " + err);
+                    err = RunWithProgress(args, s.Duration, p => PostUi(new { type = "noiseProgress", p = p }));
+                }
+                lock (noiseBusy) noiseBusy.Remove(mode);
                 RecLog.Write("редактор: шумоподавление " + mode + (err == null ? " готово" : " ошибка: " + err));
                 if (err != null) try { File.Delete(path); } catch (Exception) { } // недоделанный файл не оставляем — иначе в следующий раз взяли бы его
                 PostUi(err == null ? (object)new { type = "noiseReady", mode = mode, url = "https://" + MediaHost + "/" + file } : new { type = "error", text = "Шумоподавление: " + err });

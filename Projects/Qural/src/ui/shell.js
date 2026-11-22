@@ -76,15 +76,15 @@
     const on = (k) => (k === sel ? ' class="on"' : '');
     const offChip = (isOn) => (isOn === false ? '<span class="gw-chip gray">выкл</span>' : '');
     let h = `<button data-view="home"${on('home')}>${Q.svg('home')}<span class="qr-pn">Главная</span></button>`;
-
-    h += `<div class="qr-group${closed('color') ? ' closed' : ''}${g.colorOn === false ? ' off' : ''}" data-group="color">` +
+    // выключенные инструменты в меню не показываем — включить их можно на «Главной» и в «Общих»
+    if (g.colorOn !== false) h += `<div class="qr-group${closed('color') ? ' closed' : ''}${g.colorOn === false ? ' off' : ''}" data-group="color">` +
       `<button class="qr-ghead${sel === 'color' ? ' on' : ''}" data-view="color">${Q.svg('color')}<span class="qr-pn">Цвет</span>${offChip(g.colorOn)}<span class="qr-tw" data-toggle="color" title="Свернуть / развернуть">${CHEV}</span></button>` +
       '<div class="qr-kids">' +
       (c ? c.profiles.map((p, i) => `<button data-cp="${i}"${on('cp' + i)}><span class="qr-pn">${esc(p.name)}</span></button>`).join('') : '') +
       `<button class="qr-addrow" data-add="color">${PLUS}<span class="qr-pn">Добавить профиль</span></button>` +
       '</div></div>';
 
-    h += `<div class="qr-group${closed('sound') ? ' closed' : ''}${g.soundOn === false ? ' off' : ''}" data-group="sound">` +
+    if (g.soundOn !== false) h += `<div class="qr-group${closed('sound') ? ' closed' : ''}${g.soundOn === false ? ' off' : ''}" data-group="sound">` +
       `<button class="qr-ghead${sel === 'sound' ? ' on' : ''}" data-view="sound">${Q.svg('sound')}<span class="qr-pn">Звук</span>${offChip(g.soundOn)}<span class="qr-tw" data-toggle="sound" title="Свернуть / развернуть">${CHEV}</span></button>` +
       '<div class="qr-kids">' +
       `<button data-sa="-2"${on('sa-2')}><span class="qr-pn">Активное окно</span>` +
@@ -94,8 +94,8 @@
       `<button class="qr-addrow" data-add="sound">${PLUS}<span class="qr-pn">Добавить программу</span></button>` +
       '</div></div>';
 
-    h += `<button data-view="shot"${on('shot')}>${Q.svg('shot')}<span class="qr-pn">Скриншоты</span>${offChip(g.shotOn)}</button>`;
-    h += `<button data-view="rec"${on('rec')}>${Q.svg('rec')}<span class="qr-pn">Запись экрана</span>${g.recording ? '<span class="gw-chip red">REC</span>' : offChip(g.recOn)}</button>`;
+    if (g.shotOn !== false) h += `<button data-view="shot"${on('shot')}>${Q.svg('shot')}<span class="qr-pn">Скриншоты</span>${offChip(g.shotOn)}</button>`;
+    if (g.recOn !== false || g.recording) h += `<button data-view="rec"${on('rec')}>${Q.svg('rec')}<span class="qr-pn">Запись экрана</span>${g.recording ? '<span class="gw-chip red">REC</span>' : offChip(g.recOn)}</button>`;
     h += '<div class="qr-sep"></div>';
     h += `<button data-view="general"${on('general')}>${Q.svg('general')}<span class="qr-pn">Общие</span></button>`;
     // Пункты лежат во внутреннем блоке, а подсветка выбранного (бегунок GlassWise) — рядом с ним в #side:
@@ -186,6 +186,30 @@
   $('g-trayBtn').onclick = (e) => GW.menu(e.currentTarget,
     Object.keys(TRAY).map((v) => ({ value: v, label: TRAY[v], on: Q.state.shell && Q.state.shell.trayClick === v })),
     (v) => send({ type: 'trayClick', value: v }));
+
+  // ---------- обновления ----------
+  let upd = null;
+  function renderUpdate() {
+    const u = upd; if (!u) return;
+    $('u-cur').textContent = u.current;
+    $('u-auto').checked = u.auto;
+    const btn = $('u-btn'), note = $('u-note');
+    btn.disabled = u.state === 'checking' || u.state === 'downloading';
+    btn.classList.toggle('main', u.state === 'available');
+    btn.textContent = u.state === 'available' ? 'Обновить до ' + u.latest : u.state === 'downloading' ? 'Скачиваю… ' + u.progress + '%' : 'Проверить';
+    $('u-page').hidden = !(u.state === 'available' && u.page);
+    note.textContent =
+      u.state === 'checking' ? 'Проверяю…' :
+      u.state === 'downloading' ? 'Скачиваю установщик — потом Qural перезапустится сам' :
+      u.state === 'available' ? 'Доступна версия ' + u.latest :
+      u.state === 'latest' ? 'Установлена последняя версия' + (u.checkedAt ? ' · проверено ' + u.checkedAt : '') :
+      u.state === 'error' ? u.error :
+      u.installed ? 'Ещё не проверял' : 'Эта копия не установлена установщиком — обновлять её нужно вручную';
+  }
+  $('u-btn').onclick = () => send({ type: 'update', action: upd && upd.state === 'available' ? 'install' : 'check' });
+  $('u-page').onclick = () => send({ type: 'update', action: 'page' });
+  $('u-auto').addEventListener('change', (e) => send({ type: 'updateAuto', value: e.target.checked }));
+  Q.on('shell', (m) => { if (m.type === 'update') { upd = m; renderUpdate(); } });
 
   // ---------- команды для Ulanzi Deck / Stream Deck ----------
   // аргумент командной строки: в кавычках, если есть пробелы; кавычки внутри — через \"

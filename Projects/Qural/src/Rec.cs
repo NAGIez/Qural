@@ -316,8 +316,9 @@ namespace Qural
         public bool Recording { get { return session != null; } }
         public bool Paused { get; private set; }
         public TimeSpan Elapsed { get { return clock.Elapsed; } }
-        public float SysPeak { get { var a = sys; return a == null ? 0 : a.Peak; } }
-        public float MicPeak { get { var a = mic; return a == null ? 0 : a.Peak; } }
+        // самый громкий звук с прошлого вызова (читает только панель записи)
+        public float SysPeak { get { var a = sys; return a == null ? 0 : a.TakePeak(); } }
+        public float MicPeak { get { var a = mic; return a == null ? 0 : a.TakePeak(); } }
         public event Action Changed;
         void Fire() { var h = Changed; if (h != null) h(); }
 
@@ -595,9 +596,12 @@ namespace Qural
     class RecPanel : Form
     {
         readonly Recorder rec;
-        readonly System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer { Interval = 250 };
+        // ~30 кадров в секунду: полоски звука движутся плавно (быстро вверх, медленно вниз), точка мигает раз в полсекунды
+        readonly System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer { Interval = 33 };
         readonly Font font = new Font("Segoe UI Semibold", 13f, GraphicsUnit.Pixel);
+        readonly Stopwatch since = Stopwatch.StartNew();
         Rectangle pauseBtn, stopBtn; string hot; bool blink;
+        float sysLevel, micLevel;
         Point dragFrom; bool dragging;
 
         public RecPanel(Recorder rec, Rectangle monitor)
@@ -611,7 +615,12 @@ namespace Qural
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             using (var p = Round(new Rectangle(0, 0, Width, Height), 20)) Region = new Region(p);
             pauseBtn = new Rectangle(Width - 76, 6, 28, 28); stopBtn = new Rectangle(Width - 42, 6, 28, 28);
-            tick.Tick += (s, e) => { blink = !blink; Invalidate(); };
+            tick.Tick += (s, e) =>
+            {
+                blink = since.ElapsedMilliseconds / 500 % 2 == 0;
+                sysLevel = Smooth(sysLevel, rec.SysPeak); micLevel = Smooth(micLevel, rec.MicPeak);
+                Invalidate();
+            };
             tick.Start();
             Text = "Qural — запись";
         }
@@ -631,15 +640,23 @@ namespace Qural
             string time = ((int)t.TotalHours).ToString("00") + ":" + t.Minutes.ToString("00") + ":" + t.Seconds.ToString("00");
             using (var br = new SolidBrush(Color.White)) g.DrawString(time, font, br, 34, 10);
             // уровень звука: ПК и микрофон
-            Level(g, 112, 13, rec.SysPeak); Level(g, 112, 22, rec.MicPeak);
+            Level(g, 112, 13, sysLevel); Level(g, 112, 22, micLevel);
             Btn(g, pauseBtn, "pause", paused); Btn(g, stopBtn, "stop", false);
+        }
+
+        // уровень 0–1 на экране: громче — догоняет за пару кадров, тише — опускается плавно (~0,8 с до нуля)
+        static float Smooth(float shown, float peak)
+        {
+            float target = Math.Min(1f, (float)Math.Sqrt(Math.Max(0f, peak)));
+            if (target > shown) return shown + (target - shown) * .55f;
+            return Math.Max(target, shown - .04f);
         }
 
         static void Level(Graphics g, int x, int y, float v)
         {
             using (var bg = new SolidBrush(Color.FromArgb(50, 255, 255, 255))) g.FillRectangle(bg, x, y, 40, 4);
-            int w = (int)(40 * Math.Min(1f, (float)Math.Sqrt(v)));
-            using (var br = new SolidBrush(v > 0.9f ? Color.FromArgb(255, 59, 48) : Color.FromArgb(52, 199, 89))) g.FillRectangle(br, x, y, w, 4);
+            float w = 40 * Math.Min(1f, v);
+            using (var br = new SolidBrush(v > 0.95f ? Color.FromArgb(255, 59, 48) : Color.FromArgb(52, 199, 89))) g.FillRectangle(br, (float)x, y, w, 4f);
         }
 
         void Btn(Graphics g, Rectangle r, string id, bool paused)
@@ -707,48 +724,167 @@ namespace Qural
         }
     }
 
-    // отсчёт 3-2-1 посреди монитора; щелчок — отмена
+    // Отсчёт перед записью: тёмная плашка вверху монитора (там же, где потом панель записи):
+    // «● Запись через 3», полоска тает за 3 секунды, цифра чуть «подпрыгивает» на каждой секунде. Щелчок — отмена.
+    // Окно со своей прозрачностью (UpdateLayeredWindow): ровные скруглённые края и мягкая тень. На запись не попадает.
     class RecCountdown : Form
     {
-        readonly System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer { Interval = 1000 };
-        readonly Action go; int n = 3; bool cancelled;
-        readonly Font font = new Font("Segoe UI Semibold", 72f, GraphicsUnit.Pixel);
-        readonly Font small = new Font("Segoe UI", 13f, GraphicsUnit.Pixel);
+        const int Total = 3000, W = 300, H = 58, M = 14;   // M — поле под тень
+        readonly System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer { Interval = 15 };
+        readonly Stopwatch clock = new Stopwatch();
+        readonly Action go; readonly Action<int> onNumber;
+        readonly Point at;
+        readonly Font big = new Font("Segoe UI", 28f, FontStyle.Bold, GraphicsUnit.Pixel);
+        readonly Font label = new Font("Segoe UI Semibold", 15f, GraphicsUnit.Pixel);
+        readonly Font small = new Font("Segoe UI", 12f, GraphicsUnit.Pixel);
+        int shown = -1; bool done, cancelled;
 
-        public RecCountdown(Rectangle monitor, Action go)
+        public RecCountdown(Rectangle monitor, Action go, Action<int> onNumber)
         {
-            this.go = go;
+            this.go = go; this.onNumber = onNumber;
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true;
             StartPosition = FormStartPosition.Manual; AutoScaleMode = AutoScaleMode.None;
-            Size = new Size(200, 200);
-            Location = new Point(monitor.Left + (monitor.Width - 200) / 2, monitor.Top + (monitor.Height - 200) / 2);
-            BackColor = Color.FromArgb(18, 20, 26); Opacity = 0.92;
-            using (var p = new GraphicsPath()) { p.AddEllipse(0, 0, 200, 200); Region = new Region(p); }
-            tick.Tick += (s, e) =>
-            {
-                n--;
-                if (n <= 0) { tick.Stop(); Close(); if (!cancelled) go(); return; }
-                Invalidate();
-            };
+            at = new Point(monitor.Left + (monitor.Width - W) / 2 - M, monitor.Top + 10 - M);
+            Bounds = new Rectangle(at, new Size(W + 2 * M, H + 2 * M));
+            tick.Tick += (s, e) => Step();
             Cursor = Cursors.Hand;
+            Text = "Qural — запись через…";
         }
 
         protected override bool ShowWithoutActivation { get { return true; } }
-        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000; return cp; } }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); NoCapture.Apply(Handle); }
-        protected override void OnShown(EventArgs e) { base.OnShown(e); tick.Start(); }
-        protected override void OnMouseDown(MouseEventArgs e) { cancelled = true; tick.Stop(); Close(); }
+        protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x08000000 | 0x80000 /*LAYERED*/; return cp; } }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); NoCapture.Apply(Handle); Render(0); }
+        protected override void OnShown(EventArgs e) { base.OnShown(e); clock.Start(); tick.Start(); Step(); }
+        protected override void OnMouseDown(MouseEventArgs e) { Cancel(); }
+        public void Cancel() { if (done) return; cancelled = true; Finish(); }
+        protected override void OnPaint(PaintEventArgs e) { }
+        protected override void OnPaintBackground(PaintEventArgs e) { }
 
-        protected override void OnPaint(PaintEventArgs e)
+        void Step()
         {
-            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-            {
-                g.DrawString(n.ToString(), font, Brushes.White, new RectangleF(0, -8, 200, 200), sf);
-                using (var br = new SolidBrush(Color.FromArgb(170, 255, 255, 255))) g.DrawString("щелчок — отмена", small, br, new RectangleF(0, 140, 200, 30), sf);
-            }
+            if (done) return;
+            long t = clock.ElapsedMilliseconds;
+            if (t >= Total) { Finish(); return; }
+            int n = 3 - (int)(t / 1000);
+            if (n != shown) { shown = n; if (onNumber != null) onNumber(n); }
+            Render(t);
         }
 
-        protected override void OnFormClosed(FormClosedEventArgs e) { tick.Dispose(); font.Dispose(); small.Dispose(); base.OnFormClosed(e); }
+        void Finish()
+        {
+            if (done) return;
+            done = true; tick.Stop();
+            if (!cancelled) go();       // сначала запись, потом убрать плашку — на деке нет «пустого» мига
+            Close();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            tick.Stop(); tick.Dispose(); big.Dispose(); label.Dispose(); small.Dispose();
+            if (onNumber != null) onNumber(0);
+            base.OnFormClosed(e);
+        }
+
+        static float Ease(float x) { x = Math.Max(0, Math.Min(1, x)); return 1 - (1 - x) * (1 - x) * (1 - x); }
+
+        void Render(long t)
+        {
+            if (!IsHandleCreated) return;
+            using (var bmp = Draw(t)) Layered.Show(this, bmp, at, (byte)(255 * Ease(t / 220f)));
+        }
+
+        // кадр плашки в момент t (мс от начала)
+        Bitmap Draw(long t)
+        {
+            float appear = Ease(t / 220f);                       // въезд сверху и проявление
+            int n = Math.Max(1, 3 - (int)(t / 1000));
+            float inSec = (t % 1000) / 1000f;
+            float pop = t < 1000 ? 1f : 1f + .28f * (1 - Ease(inSec / .35f));   // цифра «подпрыгивает» на 2 и 1
+            float left = 1f - t / (float)Total;                  // сколько полоски осталось
+            var bmp = new Bitmap(W + 2 * M, H + 2 * M, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            {
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g.Clear(Color.Transparent);
+                    g.TranslateTransform(0, -8 * (1 - appear));
+                    var card = new RectangleF(M, M, W, H);
+                    // мягкая тень
+                    for (int i = 6; i >= 1; i--)
+                        using (var p = Round(new RectangleF(card.X - i, card.Y - i + 3, card.Width + 2 * i, card.Height + 2 * i), 18 + i))
+                        using (var br = new SolidBrush(Color.FromArgb(10, 0, 0, 0))) g.FillPath(br, p);
+                    using (var p = Round(card, 18))
+                    {
+                        using (var br = new SolidBrush(Color.FromArgb(244, 22, 24, 30))) g.FillPath(br, p);
+                        // полоска внизу карточки тает справа налево
+                        var clip = g.Clip; g.SetClip(p);
+                        using (var br = new SolidBrush(Color.FromArgb(40, 255, 255, 255))) g.FillRectangle(br, card.X, card.Bottom - 3, card.Width, 3);
+                        using (var br = new SolidBrush(Color.FromArgb(255, 59, 48))) g.FillRectangle(br, card.X, card.Bottom - 3, card.Width * left, 3);
+                        g.Clip = clip;
+                        using (var pen = new Pen(Color.FromArgb(28, 255, 255, 255), 1f)) g.DrawPath(pen, p);
+                    }
+                    // пульсирующая красная точка с ореолом
+                    float cx = card.X + 26, cy = card.Y + H / 2f - 1;
+                    float ph = (float)((Math.Sin(t / 1000.0 * Math.PI * 2 - Math.PI / 2) + 1) / 2);
+                    float halo = 9 + 6 * ph;
+                    using (var br = new SolidBrush(Color.FromArgb((int)(70 * (1 - ph) + 20), 255, 59, 48))) g.FillEllipse(br, cx - halo, cy - halo, halo * 2, halo * 2);
+                    using (var br = new SolidBrush(Color.FromArgb(255, 59, 48))) g.FillEllipse(br, cx - 6, cy - 6, 12, 12);
+                    // подписи
+                    using (var br = new SolidBrush(Color.White)) g.DrawString("Запись через", label, br, card.X + 46, card.Y + 10);
+                    using (var br = new SolidBrush(Color.FromArgb(150, 255, 255, 255))) g.DrawString("щелчок — отмена", small, br, card.X + 47, card.Y + 30);
+                    // цифра справа
+                    var st = g.Save();
+                    float dx = card.Right - 40, dy = card.Y + H / 2f - 1;
+                    g.TranslateTransform(dx, dy); g.ScaleTransform(pop, pop);
+                    using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    using (var br = new SolidBrush(Color.FromArgb((int)(255 * Math.Min(1f, .55f + inSec * 3)), 255, 255, 255)))
+                        g.DrawString(n.ToString(), big, br, new RectangleF(-30, -24, 60, 48), sf);
+                    g.Restore(st);
+                }
+            }
+            return bmp;
+        }
+
+        static GraphicsPath Round(RectangleF r, float rad)
+        {
+            var p = new GraphicsPath(); float d = rad * 2;
+            p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure(); return p;
+        }
+    }
+
+    // окно с прозрачностью по точкам: картинка 32 бита с альфой → UpdateLayeredWindow
+    static class Layered
+    {
+        [StructLayout(LayoutKind.Sequential)] struct PT { public int X, Y; }
+        [StructLayout(LayoutKind.Sequential)] struct SZ { public int W, H; }
+        [StructLayout(LayoutKind.Sequential, Pack = 1)] struct BLEND { public byte Op, Flags, Alpha, Format; }
+        [DllImport("user32.dll")] static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dst, ref PT pos, ref SZ size, IntPtr src, ref PT srcPos, int key, ref BLEND blend, int flags);
+        [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr h);
+        [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr h, IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern bool DeleteDC(IntPtr dc);
+        [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr dc, IntPtr obj);
+        [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
+
+        public static void Show(Form f, Bitmap bmp, Point at, byte alpha)
+        {
+            IntPtr screen = GetDC(IntPtr.Zero), mem = CreateCompatibleDC(screen), hb = IntPtr.Zero, old = IntPtr.Zero;
+            try
+            {
+                hb = bmp.GetHbitmap(Color.FromArgb(0)); old = SelectObject(mem, hb);
+                var pos = new PT { X = at.X, Y = at.Y }; var size = new SZ { W = bmp.Width, H = bmp.Height }; var src = new PT();
+                var bl = new BLEND { Op = 0, Flags = 0, Alpha = alpha, Format = 1 /*AC_SRC_ALPHA*/ };
+                UpdateLayeredWindow(f.Handle, screen, ref pos, ref size, mem, ref src, 0, ref bl, 2 /*ULW_ALPHA*/);
+            }
+            finally
+            {
+                if (old != IntPtr.Zero) SelectObject(mem, old);
+                if (hb != IntPtr.Zero) DeleteObject(hb);
+                DeleteDC(mem); ReleaseDC(IntPtr.Zero, screen);
+            }
+        }
     }
 }

@@ -24,6 +24,8 @@ namespace Qural
         [DataMember] public int JpegQuality;
         [DataMember] public bool Cursor;         // рисовать курсор на снимке
         [DataMember] public bool KeepSelection;  // открывать с прошлой рамкой
+        [DataMember] public bool HighlightBlur;  // «Подсветка области»: вокруг размыто, а не затемнено
+        [DataMember] public int BlurLevel;       // сила этого размытия 1–10, колёсиком
         [DataMember] public bool AskWhere;       // «Сохранить» спрашивает имя и папку
         [DataMember] public bool Notify;         // уведомление после копирования и сохранения
         [DataMember] public int LastX, LastY, LastW, LastH; // прошлая рамка, в координатах экрана
@@ -40,7 +42,7 @@ namespace Qural
             WindowHotkey = (int)(Keys.Control | Keys.PrintScreen);
             Folder = ""; LastDir = "";
             Format = "png"; JpegQuality = 90;
-            Cursor = false; KeepSelection = false; AskWhere = true; Notify = true;
+            Cursor = false; KeepSelection = false; HighlightBlur = false; BlurLevel = 5; AskWhere = true; Notify = true;
             Color = unchecked((int)0xFFFF3B30); Width = 3;
         }
 
@@ -60,6 +62,7 @@ namespace Qural
             if (c.Format != "jpg") c.Format = "png";
             if (c.JpegQuality < 10 || c.JpegQuality > 100) c.JpegQuality = 90;
             if (c.Width < 1 || c.Width > 30) c.Width = 3;
+            if (c.BlurLevel < 1 || c.BlurLevel > 10) c.BlurLevel = 5;
             if (c.Folder == null) c.Folder = "";
             if (c.LastDir == null) c.LastDir = "";
             if ((c.Color >> 24 & 0xFF) == 0) c.Color = unchecked((int)0xFFFF3B30);
@@ -306,7 +309,8 @@ namespace Qural
         readonly Rectangle virt;                // все мониторы, координаты экрана
         readonly List<Rectangle> monitors = new List<Rectangle>(); // в координатах окна
         readonly List<Rectangle> wins = new List<Rectangle>();     // окна, в координатах окна
-        Bitmap shot, dim;
+        Bitmap shot, dim, blurShot;   // blurShot — размытая рамка для «Подсветки» с размытием, по требованию
+        Rectangle blurRect; int blurLevel;   // для какой рамки и силы он сделан
 
         Rectangle sel = Rectangle.Empty, hover = Rectangle.Empty, lastDirty = Rectangle.Empty;
         Drag drag = Drag.None; Point down, mouse; Rectangle selAtDown; int handle = -1; bool moved;
@@ -317,7 +321,7 @@ namespace Qural
         int editIndex = -1; string editOld;                    // правка уже добавленного текста
         readonly Stack<Action> undo = new Stack<Action>();     // шаги для Ctrl+Z: добавление, перенос, правка, удаление
         readonly List<Btn> btns = new List<Btn>();
-        Rectangle vbar, hbar, palRect;
+        Rectangle vbar, hbar, palRect, optRect;   // optRect — выбор «затемнить / размыть» у «Подсветки»
         bool palOpen;
         Btn Hot { get { return hotId == null ? null : btns.Find(x => x.Id == hotId); } }
         string flash = ""; DateTime flashUntil;
@@ -347,15 +351,7 @@ namespace Qural
             }
             color = Color.FromArgb(cfg.Color); width = cfg.Width;
 
-            // затемнённая копия — фон вокруг рамки
-            dim = new Bitmap(shot.Width, shot.Height, PixelFormat.Format32bppPArgb);
-            using (var g = Graphics.FromImage(dim))
-            {
-                g.CompositingMode = CompositingMode.SourceCopy;
-                g.DrawImageUnscaled(shot, 0, 0);
-                g.CompositingMode = CompositingMode.SourceOver;
-                using (var br = new SolidBrush(Color.FromArgb(120, 0, 0, 0))) g.FillRectangle(br, 0, 0, dim.Width, dim.Height);
-            }
+            MakeDim();
 
             ui = new Font("Segoe UI", 13f, GraphicsUnit.Pixel);
             uiBold = new Font("Segoe UI Semibold", 13f, GraphicsUnit.Pixel);
@@ -462,6 +458,49 @@ namespace Qural
                 if (changed) Marshal.StructureToPtr(wp, m.LParam, false);
             }
             base.WndProc(ref m);
+        }
+
+        // затемнённая копия — фон вокруг рамки
+        void MakeDim()
+        {
+            dim = new Bitmap(shot.Width, shot.Height, PixelFormat.Format32bppPArgb);
+            using (var g = Graphics.FromImage(dim))
+            {
+                g.CompositingMode = CompositingMode.SourceCopy;
+                g.DrawImageUnscaled(shot, 0, 0);
+                g.CompositingMode = CompositingMode.SourceOver;
+                using (var br = new SolidBrush(Color.FromArgb(120, 0, 0, 0))) g.FillRectangle(br, 0, 0, dim.Width, dim.Height);
+            }
+        }
+
+        // размытый кусок снимка для «Подсветки»: уменьшаем в factor раз (через промежуточный шаг) и растягиваем
+        // обратно — мягко и быстро даже на 4K; по краям — зеркально, без тёмной каймы
+        static Bitmap Blurred(Bitmap src, Rectangle area, int factor)
+        {
+            var res = new Bitmap(area.Width, area.Height, PixelFormat.Format32bppPArgb);
+            int mid = Math.Max(2, factor / 4);
+            int w1 = Math.Max(1, area.Width / mid), h1 = Math.Max(1, area.Height / mid);
+            int w2 = Math.Max(1, area.Width / factor), h2 = Math.Max(1, area.Height / factor);
+            using (var a = new Bitmap(w1, h1, PixelFormat.Format32bppPArgb))
+            using (var b = new Bitmap(w2, h2, PixelFormat.Format32bppPArgb))
+            using (var ia = new ImageAttributes())
+            {
+                ia.SetWrapMode(WrapMode.TileFlipXY);
+                Action<Bitmap, Rectangle, Bitmap, Rectangle, InterpolationMode> scale = (from, fr, to, tr, mode) =>
+                {
+                    using (var gg = Graphics.FromImage(to))
+                    {
+                        gg.CompositingMode = CompositingMode.SourceCopy; gg.InterpolationMode = mode; gg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        gg.DrawImage(from, tr, fr.X, fr.Y, fr.Width, fr.Height, GraphicsUnit.Pixel, ia);
+                    }
+                };
+                var ra = new Rectangle(0, 0, w1, h1); var rb = new Rectangle(0, 0, w2, h2);
+                scale(src, area, a, ra, InterpolationMode.HighQualityBilinear);
+                scale(a, ra, b, rb, InterpolationMode.HighQualityBilinear);
+                scale(b, rb, a, ra, InterpolationMode.HighQualityBicubic);
+                scale(a, ra, res, new Rectangle(0, 0, area.Width, area.Height), InterpolationMode.HighQualityBicubic);
+            }
+            return res;
         }
 
         protected override void OnShown(EventArgs e)
@@ -684,6 +723,7 @@ namespace Qural
         void LayoutBars()
         {
             btns.Clear();
+            optRect = Rectangle.Empty;
             if (sel.IsEmpty) { vbar = hbar = palRect = Rectangle.Empty; return; }
             var scr = ScreenOf(sel);
             if (pick != null)
@@ -704,7 +744,7 @@ namespace Qural
             string[] ids = { "hand", "pencil", "line", "arrow", "rect", "ellipse", "marker", "text", "blur", "highlight", "step", "color", "undo" };
             string[] tips = { "Рука — двигать нарисованное, двойной щелчок по тексту — править, Delete — удалить",
                               "Карандаш", "Линия", "Стрелка", "Прямоугольник", "Окружность", "Маркер", "Текст", "Размытие",
-                              "Подсветка области — всё вокруг затемняется", "Номер шага",
+                              "Подсветка области — всё вокруг затемняется или размывается (колёсико — сила)", "Номер шага",
                               "Цвет", "Отменить (Ctrl+Z)" };
             Tool[] tools = { Tool.Hand, Tool.Pencil, Tool.Line, Tool.Arrow, Tool.Rect, Tool.Ellipse, Tool.Marker, Tool.Text, Tool.Blur, Tool.Highlight, Tool.Step, Tool.None, Tool.None };
             int vw = P * 2 + B, vh = P * 2 + ids.Length * B + (ids.Length - 1) * G + 8;
@@ -752,6 +792,18 @@ namespace Qural
                 palRect = new Rectangle(px, cb.R.Y + (B - ph) / 2, pw, ph);
             }
             else palRect = Rectangle.Empty;
+
+            // у «Подсветки» — что делать вокруг: затемнить или размыть (выбор запоминается)
+            if (tool == Tool.Highlight)
+            {
+                var hb = btns.Find(b => b.Id == "highlight");
+                int ow = P * 2 + 2 * B + G, oh = P * 2 + B;
+                int ox = vbar.Left - ow - 6;
+                if (ox < scr.Left + 4) ox = vbar.Right + 6;
+                optRect = new Rectangle(ox, hb.R.Y - P, ow, oh);
+                btns.Add(new Btn { R = new Rectangle(ox + P, optRect.Y + P, B, B), Id = "hl-dark", Tip = "Затемнить вокруг" });
+                btns.Add(new Btn { R = new Rectangle(ox + P + B + G, optRect.Y + P, B, B), Id = "hl-blur", Tip = "Размыть вокруг (колёсико — сила)" });
+            }
         }
 
         Rectangle Swatch(int i)
@@ -764,6 +816,7 @@ namespace Qural
         {
             Panel(g, vbar);
             Panel(g, hbar);
+            Panel(g, optRect);
             using (var pen = new Pen(Color.FromArgb(50, 255, 255, 255)))
             {
                 var colorBtn = btns.Find(b => b.Id == "color");
@@ -773,7 +826,7 @@ namespace Qural
             }
             foreach (var b in btns)
             {
-                bool on = (b.T != Tool.None && b.T == tool) || (b.Id == "color" && palOpen);
+                bool on = (b.T != Tool.None && b.T == tool) || (b.Id == "color" && palOpen) || (b.Id == "hl-dark" && !cfg.HighlightBlur) || (b.Id == "hl-blur" && cfg.HighlightBlur);
                 if (on) Fill(g, b.R, 8, Color.FromArgb(70, 255, 255, 255));
                 else if (b.Id == hotId) Fill(g, b.R, 8, Color.FromArgb(34, 255, 255, 255));
                 bool disabled = b.Id == "undo" && undo.Count == 0 && editing == null;
@@ -820,7 +873,9 @@ namespace Qural
             var scr = ScreenOf(sel);
             bool vertical = vbar.Contains(b.R);
             Rectangle r;
-            if (vertical)
+            if (optRect.Contains(b.R))
+                r = new Rectangle(b.R.X + B / 2 - w / 2, optRect.Top - 6 - h, w, h);
+            else if (vertical)
             {
                 r = new Rectangle(vbar.Right + 6, b.R.Y + (B - h) / 2, w, h);
                 if (r.Right > scr.Right) r.X = vbar.Left - 6 - w;
@@ -895,6 +950,7 @@ namespace Qural
                         g.DrawLines(pen, new[] { new PointF(12, 6), new PointF(14, 8), new PointF(12, 10) });
                         break;
                     case "highlight":
+                    case "hl-dark":
                         // затемнение вокруг, светлое окно в центре
                         using (var fog = new SolidBrush(Color.FromArgb(90, c)))
                         {
@@ -930,6 +986,17 @@ namespace Qural
                         g.DrawRectangle(pen, 2.5f, 2.5f, 11, 11);
                         for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
                                 if ((i + j) % 2 == 0) g.FillRectangle(br, 2.5f + i * 2.75f, 2.5f + j * 2.75f, 2.75f, 2.75f);
+                        break;
+                    case "hl-blur":
+                        // чёткая рамка, вокруг — размытые точки
+                        using (var fog = new SolidBrush(Color.FromArgb(150, c)))
+                            for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++)
+                                {
+                                    float px = 2 + i * 3, py = 2 + j * 3;
+                                    if (i >= 1 && i <= 3 && j >= 1 && j <= 3) continue;
+                                    g.FillEllipse(fog, px - 1.1f, py - 1.1f, 2.2f, 2.2f);
+                                }
+                        g.DrawRectangle(pen, 4.5f, 4.5f, 7, 7);
                         break;
                     case "step":
                         g.DrawEllipse(pen, 2, 2, 12, 12);
@@ -981,7 +1048,22 @@ namespace Qural
                         if (r.Width < 2 || r.Height < 2) continue;
                         using (var path = Round(r, Math.Max(1, Math.Min(8, Math.Min(r.Width, r.Height) / 2)))) region.Exclude(path);
                     }
-                    using (var br = new SolidBrush(Color.FromArgb(150, 0, 0, 0))) g.FillRegion(br, region);
+                    if (cfg.HighlightBlur)
+                    {
+                        // один слой на все подсветки: где они пересекаются, чёткие места сливаются, размытие не копится
+                        var area = Rectangle.Intersect(sel, new Rectangle(0, 0, shot.Width, shot.Height));
+                        if (blurShot == null || blurRect != area || blurLevel != cfg.BlurLevel)
+                        {
+                            if (blurShot != null) blurShot.Dispose();
+                            blurShot = Blurred(shot, area, 2 + cfg.BlurLevel * 3);   // 1 → в 5 раз, 10 → в 32 раза
+                            blurRect = area; blurLevel = cfg.BlurLevel;
+                        }
+                        var clip = g.Clip; g.SetClip(region, CombineMode.Intersect);
+                        g.DrawImageUnscaled(blurShot, area.X, area.Y);
+                        g.Clip = clip;
+                        using (var br = new SolidBrush(Color.FromArgb(50, 0, 0, 0))) g.FillRegion(br, region);
+                    }
+                    else using (var br = new SolidBrush(Color.FromArgb(150, 0, 0, 0))) g.FillRegion(br, region);
                 }
             foreach (var s in shapes) if (s.Kind != Tool.Highlight) DrawShape(g, s);
             if (!live) return;
@@ -1589,6 +1671,15 @@ namespace Qural
             // надпись, выбранная «Рукой» или открытая для правки, — колёсико меняет размер шрифта
             Shape txt = editing != null ? editing : (tool == Tool.Hand && picked != null && picked.Kind == Tool.Text ? picked : null);
             if (txt != null) { WheelText(txt, e.Delta > 0); return; }
+            if (tool == Tool.Highlight && cfg.HighlightBlur)
+            {
+                int nl = Math.Max(1, Math.Min(10, cfg.BlurLevel + (e.Delta > 0 ? 1 : -1)));
+                if (nl == cfg.BlurLevel) return;
+                cfg.BlurLevel = nl;
+                Redraw(true);
+                Flash("Размытие: " + nl);
+                return;
+            }
             int nw = Math.Max(1, Math.Min(30, width + (e.Delta > 0 ? 1 : -1)));
             if (nw == width) return;
             width = nw;
@@ -1701,6 +1792,8 @@ namespace Qural
             {
                 case "color": palOpen = !palOpen; break;
                 case "undo": Undo(); break;
+                case "hl-dark": cfg.HighlightBlur = false; break;   // запомнится при закрытии
+                case "hl-blur": cfg.HighlightBlur = true; break;
                 case "copy": Copy(); return;
                 case "rec": Copy(); return;
                 case "save": Save(); return;
@@ -1942,6 +2035,7 @@ namespace Qural
                 var v = vbar; v.Inflate(2, 2); add(v);
                 var h = hbar; h.Inflate(2, 2); add(h);
                 add(palRect);
+                var o = optRect; o.Inflate(2, 2); add(o);
                 var hb = Hot;
                 if (hb != null) { var t = TipRect(g, hb); t.Inflate(2, 2); add(t); }
             }
@@ -1966,6 +2060,7 @@ namespace Qural
             foreach (var s in shapes) if (s.Cache != null) s.Cache.Dispose();
             if (shot != null) { shot.Dispose(); shot = null; }
             if (dim != null) { dim.Dispose(); dim = null; }
+            if (blurShot != null) { blurShot.Dispose(); blurShot = null; }
             ui.Dispose(); uiBold.Dispose(); uiSmall.Dispose();
             base.OnFormClosed(e);
         }

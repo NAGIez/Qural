@@ -39,6 +39,9 @@ namespace Qural
         readonly List<Client> clients = new List<Client>();
         readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 16 * 1024 * 1024 };
         readonly System.Windows.Forms.Timer poll = new System.Windows.Forms.Timer { Interval = 1000 };
+        // «Скриншот» / «Запись экрана»: пока идёт запись — время на кнопке (проверяем 4 раза в секунду, шлём раз в секунду)
+        readonly System.Windows.Forms.Timer capPoll = new System.Windows.Forms.Timer { Interval = 250 };
+        static bool IsCapture(string kind) { return kind == "shot-key" || kind == "rec-key"; }
         volatile bool stopping;
         IntPtr fgHook = IntPtr.Zero;
         WinEventProc fgProc; // держим ссылку, чтобы делегат не собрал сборщик мусора
@@ -127,6 +130,7 @@ namespace Qural
             this.app = app;
             ui = SynchronizationContext.Current ?? new System.Windows.Forms.WindowsFormsSynchronizationContext();
             poll.Tick += (s, e) => Push(false);
+            capPoll.Tick += (s, e) => { if (app.RecOn && !app.RecPaused) Push(false, true); };
             media.Changed += () => { try { ui.Post(_ => Push(false), null); } catch (Exception) { } };
             stats.Changed += () => { try { ui.Post(_ => { if (!stopping) SendStats(); }, null); } catch (Exception) { } };
             new Thread(AcceptLoop) { IsBackground = true, Name = "Qural.DeckLink" }.Start();
@@ -184,15 +188,17 @@ namespace Qural
         void UpdateWatching()
         {
             if (stopping) return;
-            bool any = false, active = false, music = false, load = false;
+            bool any = false, active = false, music = false, load = false, cap = false;
             foreach (var c in Clients)
                 foreach (var t in c.Tiles.Values)
                 {
                     if (t.Kind.StartsWith("media")) { music = true; continue; }   // «Сейчас играет» обновляет Media сам
                     if (t.Kind.StartsWith("stats")) { load = true; continue; }    // «Нагрузка ПК» — Stats сам
+                    if (IsCapture(t.Kind)) { cap = true; continue; }             // скриншот / запись — по событиям
                     any = true; if (t.App == "active" && !t.Kind.StartsWith("color")) active = true;
                 }
             if (any) { if (!poll.Enabled) poll.Start(); } else poll.Stop();
+            if (cap) { if (!capPoll.Enabled) capPoll.Start(); } else capPoll.Stop();
             media.Watching = music;
             stats.Watching = load;
             if (active && fgHook == IntPtr.Zero)
@@ -228,9 +234,11 @@ namespace Qural
                     if (d == null) continue;
                     string id = Str(d, "id"), kind = Str(d, "kind");
                     if (kind != "dial" && kind != "color-key" && kind != "color-dial" && kind != "media-key" && kind != "media-dial" &&
-                        kind != "stats-key" && kind != "stats-dial") kind = "key";
+                        kind != "stats-key" && kind != "stats-dial" && kind != "shot-key" && kind != "rec-key") kind = "key";
                     // у кнопок цвета в app — профиль: next или название
-                    string a = kind.StartsWith("color") ? (Str(d, "app").Trim().Length > 0 ? Str(d, "app").Trim() : "next") : Target(Str(d, "app"));
+                    // у «Скриншота» в app — что делает долгое нажатие (off — запись на этой кнопке не показывать)
+                    string a = kind.StartsWith("color") ? (Str(d, "app").Trim().Length > 0 ? Str(d, "app").Trim() : "next")
+                             : IsCapture(kind) ? Str(d, "app").Trim() : Target(Str(d, "app"));
                     if (id.Length == 0) continue;
                     Tile old;
                     // та же кнопка с тем же содержимым — картинку заново не шлём
@@ -407,8 +415,11 @@ namespace Qural
             return st;
         }
 
-        // Вызывать на потоке интерфейса. force — перерисовать все кнопки.
-        public void Push(bool force)
+        // скриншот открылся / закрылся, отсчёт, запись началась / пауза / остановилась
+        public void CaptureChanged() { try { ui.Post(_ => Push(false, true), null); } catch (Exception) { } }
+
+        // Вызывать на потоке интерфейса. force — перерисовать все кнопки; captureOnly — только «Скриншот» и «Запись экрана».
+        public void Push(bool force, bool captureOnly = false)
         {
             if (stopping) return;
             var list = Clients;
@@ -418,7 +429,8 @@ namespace Qural
 
             // микшер опрашиваем, только если на деке есть кнопки громкости
             bool needSnap = false;
-            foreach (var c in list) foreach (var t in c.Tiles.Values) if (!t.Kind.StartsWith("color") && !t.Kind.StartsWith("media") && !t.Kind.StartsWith("stats")) { needSnap = true; break; }
+            if (!captureOnly)
+                foreach (var c in list) foreach (var t in c.Tiles.Values) if (!t.Kind.StartsWith("color") && !t.Kind.StartsWith("media") && !t.Kind.StartsWith("stats") && !IsCapture(t.Kind)) { needSnap = true; break; }
             List<Audio.Info> snap = null;
             if (needSnap) try { snap = Audio.Snapshot(); } catch (Exception) { return; }
             var cache = new Dictionary<string, DeckTiles.State>(StringComparer.OrdinalIgnoreCase);
@@ -428,6 +440,13 @@ namespace Qural
                 var changed = new List<object>();
                 foreach (var t in c.Tiles.Values)
                 {
+                    if (IsCapture(t.Kind))
+                    {
+                        object tile = CaptureTile(t, force);
+                        if (tile != null) changed.Add(tile);
+                        continue;
+                    }
+                    if (captureOnly) continue;
                     if (t.Kind.StartsWith("color"))
                     {
                         object tile = ColorTile(t, force);
@@ -455,6 +474,37 @@ namespace Qural
                 }
                 if (changed.Count > 0) c.Send(json.Serialize(new { type = "tiles", tiles = changed }));
             }
+        }
+
+        // «Скриншот» и «Запись экрана»: пока идёт выделение, отсчёт или запись — своя картинка (часто анимация),
+        // иначе reset — плагин возвращает значок из manifest. На «Скриншоте» запись видна, если долгое нажатие её включает.
+        object CaptureTile(Tile t, bool force)
+        {
+            bool recKey = t.Kind == "rec-key";
+            bool showRec = recKey || t.App != "off";
+            string mode = app.ShotMode;
+            int cd = app.CountdownN;
+            var el = app.RecElapsed;
+            string state;
+            if (mode == "shot" && !recKey) state = "shot";
+            else if (mode == "pick" && showRec) state = "pick";
+            else if (showRec && cd > 0) state = "cd|" + cd;
+            else if (showRec && app.RecOn) state = (app.RecPaused ? "pause|" : "rec|") + (long)el.TotalSeconds;
+            else state = "idle";
+            if (!force && state == t.Last) return null;
+            string png = null, gif = null;
+            try
+            {
+                if (state == "idle") { t.Last = state; return new { id = t.Id, reset = true }; }
+                if (state == "shot") gif = Convert.ToBase64String(CaptureTiles.ShotGif());
+                else if (state == "pick") gif = Convert.ToBase64String(CaptureTiles.PickGif());
+                else if (state.StartsWith("cd|")) gif = Convert.ToBase64String(CaptureTiles.CountdownGif(cd));
+                else if (state.StartsWith("pause|")) gif = Convert.ToBase64String(CaptureTiles.PausedGif(TimeSpan.FromSeconds((long)el.TotalSeconds)));
+                else gif = Convert.ToBase64String(CaptureTiles.RecGif(TimeSpan.FromSeconds((long)el.TotalSeconds)));
+            }
+            catch (Exception) { return null; }
+            t.Last = state;
+            return new { id = t.Id, png = png, gif = gif, title = "", value = "", volume = 0, muted = false, running = true };
         }
 
         // кнопка профиля цвета: next — показывает текущий профиль, название — светится, когда этот профиль включён
@@ -621,7 +671,7 @@ namespace Qural
         public void Dispose()
         {
             stopping = true;
-            poll.Stop();
+            poll.Stop(); capPoll.Stop();
             media.Dispose();
             stats.Dispose();
             if (fgHook != IntPtr.Zero) { UnhookWinEvent(fgHook); fgHook = IntPtr.Zero; }

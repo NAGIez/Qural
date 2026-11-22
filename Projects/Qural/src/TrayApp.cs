@@ -283,7 +283,7 @@ namespace Qural
             Rec = RecConfig.Load();
             ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
             recorder = new Recorder(this);
-            recorder.Changed += () => { BuildMenu(); if (window != null && !window.IsDisposed) window.RecChanged(); };
+            recorder.Changed += () => { BuildMenu(); if (window != null && !window.IsDisposed) window.RecChanged(); DeckCapture(); };
 
             tray.Icon = AppIcon.Get(SystemInformation.SmallIconSize);
             tray.ContextMenuStrip = new ContextMenuStrip();
@@ -327,11 +327,57 @@ namespace Qural
             else TrimMemorySoon(); // запустились тихо в трей — отдать Windows всё, что понадобилось только при старте
             if (startupCommand != null) RunCommand(startupCommand); // Qural не был запущен — выполняем команду сами
             deck = new DeckLink(this); // плагин Ulanzi Studio: громкость программ на кнопках деки
+
+            // обновления: первая проверка через минуту, потом раз в 12 часов (только у установленной копии)
+            Updater.Changed += () => Invoke(() => { BuildMenu(); if (window != null && !window.IsDisposed) window.UpdateChanged(); });
+            updateTimer.Tick += (s, e) => { updateTimer.Interval = 12 * 3600 * 1000; AutoCheckUpdate(); };
+            updateTimer.Start();
+        }
+
+        // ── обновления ──
+        readonly System.Windows.Forms.Timer updateTimer = new System.Windows.Forms.Timer { Interval = 60 * 1000 };
+        bool updateBalloon; DateTime updateBalloonAt;
+
+        void AutoCheckUpdate()
+        {
+            if (General.NoUpdateCheck || !Updater.Installed) return;
+            Updater.CheckAsync(() => Invoke(() =>
+            {
+                var r = Updater.Latest;
+                if (Updater.State != "available" || r == null || General.UpdateNotified == r.Version || Fullscreen.Active()) return;
+                General.UpdateNotified = r.Version; General.Save();
+                updateBalloon = true; updateBalloonAt = DateTime.UtcNow; shotPath = null;
+                tray.ShowBalloonTip(8000, "Qural — обновление", "Доступна версия " + r.Version + ". Щёлкните, чтобы установить", ToolTipIcon.None);
+            }));
+        }
+
+        public void CheckUpdate() { Updater.CheckAsync(null); }
+
+        // скачать и запустить установщик; Qural закрывается, установщик запустит его снова
+        public void InstallUpdate()
+        {
+            if (recorder.Recording) { tray.ShowBalloonTip(4000, "Qural — обновление", "Идёт запись экрана — обновлю после того, как вы её остановите", ToolTipIcon.None); return; }
+            Updater.InstallAsync(err => Invoke(() =>
+            {
+                if (err != null) { tray.ShowBalloonTip(5000, "Qural — обновление", "Не получилось: " + err, ToolTipIcon.Warning); return; }
+                ExitThread();
+            }));
         }
 
         DeckLink deck;
         // громкость поменялась (клавишей, командой, в окне) — обновить кнопки деки, если они есть
         public void DeckChanged() { if (deck != null) deck.Push(false); }
+
+        // для кнопок «Скриншот» и «Запись экрана» на деке: что сейчас идёт
+        string shotMode = "";   // "" — ничего, shot — выделение для скриншота, pick — выбор области для записи
+        int countdownN;         // 3, 2, 1 — идёт отсчёт перед записью; 0 — нет
+        RecCountdown countdownForm;
+        public string ShotMode { get { return shotForm != null && !shotForm.IsDisposed ? shotMode : ""; } }
+        public int CountdownN { get { return countdownN; } }
+        public bool RecOn { get { return recorder != null && recorder.Recording; } }
+        public bool RecPaused { get { return recorder != null && recorder.Paused; } }
+        public TimeSpan RecElapsed { get { return recorder != null ? recorder.Elapsed : TimeSpan.Zero; } }
+        void DeckCapture() { if (deck != null) deck.CaptureChanged(); }
 
         // ── скриншоты ──
         ShotForm shotForm;
@@ -360,8 +406,10 @@ namespace Qural
                 try { bmp = Shooter.Capture(virt, Shot.Cursor); }
                 catch (Exception ex) { tray.ShowBalloonTip(4000, "Qural — скриншот", "Не удалось снять экран: " + ex.Message, ToolTipIcon.Warning); return; }
                 shotForm = new ShotForm(Shot, bmp, virt, mons, wins, ShotNotify);
-                shotForm.FormClosed += (s, e) => { shotForm = null; TrimMemorySoon(); };
+                shotForm.FormClosed += (s, e) => { shotForm = null; shotMode = ""; DeckCapture(); TrimMemorySoon(); };
+                shotMode = "shot";
                 shotForm.Show();
+                DeckCapture();
             }
             finally { Shooter.Restore(old); }
         }
@@ -401,6 +449,8 @@ namespace Qural
         {
             if (General.RecOff) return "«Запись» выключена — включите её в Qural";
             string a = (action ?? "toggle").Trim().ToLowerInvariant();
+            // идёт отсчёт: ещё раз «начать / остановить» — отменить его
+            if (countdownForm != null && !countdownForm.IsDisposed) { if (a == "toggle" || a == "stop") countdownForm.Cancel(); return null; }
             if (a == "pause") { if (recorder.Recording) recorder.TogglePause(); return null; }
             if (a == "stop" || (a == "toggle" && recorder.Recording)) { if (recorder.Recording) recorder.Stop(); return null; }
             if (a != "start" && a != "toggle") return "--rec: вместо «" + action + "» нужно start, stop, toggle или pause";
@@ -435,8 +485,10 @@ namespace Qural
                 try { bmp = Shooter.Capture(virt, false); }
                 catch (Exception ex) { RecNotify("Не удалось снять экран: " + ex.Message, null); return; }
                 shotForm = new ShotForm(Shot, bmp, virt, mons, wins, handles, ShotNotify, (r, h) => BeginRec(Target(r, h)));
-                shotForm.FormClosed += (s, e) => { shotForm = null; TrimMemorySoon(); };
+                shotForm.FormClosed += (s, e) => { shotForm = null; shotMode = ""; DeckCapture(); TrimMemorySoon(); };
+                shotMode = "pick";
                 shotForm.Show();
+                DeckCapture();
             }
             finally { Shooter.Restore(old); }
         }
@@ -463,10 +515,15 @@ namespace Qural
 
         void BeginRec(RecTarget t)
         {
-            if (recorder.Recording) return;
+            if (recorder.Recording || (countdownForm != null && !countdownForm.IsDisposed)) return;
             RecLog.Write("старт: " + t.Kind + " " + t.Area + " окно " + t.Hwnd + " монитор " + t.Monitor);
             Action go = () => { try { recorder.Start(t); } catch (Exception ex) { RecLog.Write(ex.ToString()); RecNotify("Запись не началась: " + ex.Message, null); } };
-            if (Rec.Countdown) new RecCountdown(t.Monitor, go).Show();
+            if (Rec.Countdown)
+            {
+                countdownForm = new RecCountdown(t.Monitor, go, n => { countdownN = n; DeckCapture(); });
+                countdownForm.FormClosed += (s, e) => countdownForm = null;
+                countdownForm.Show();
+            }
             else go();
         }
 
@@ -503,6 +560,8 @@ namespace Qural
 
         void OnBalloonClick(object s, EventArgs e)
         {
+            if (updateBalloon && (DateTime.UtcNow - updateBalloonAt).TotalSeconds < 60) { updateBalloon = false; InstallUpdate(); return; }
+            updateBalloon = false;
             string p = shotPath; shotPath = null;
             if (p == null || (DateTime.UtcNow - shotAt).TotalSeconds > 30) return;
             try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + p + "\""); } catch (Exception) { }
@@ -846,6 +905,10 @@ namespace Qural
             var autoItem = new ToolStripMenuItem("Запускать вместе с Windows", null, (s, e) => SetAutostart(!IsAutostart()));
             autoItem.Checked = IsAutostart();
             menu.Items.Add(autoItem);
+            if (Updater.State == "available" && Updater.Latest != null)
+                menu.Items.Add(new ToolStripMenuItem("Обновить Qural до " + Updater.Latest.Version, null, (s, e) => InstallUpdate()));
+            else if (Updater.State == "downloading")
+                menu.Items.Add(new ToolStripMenuItem("Скачиваю обновление… " + Updater.Progress + "%") { Enabled = false });
             menu.Items.Add(new ToolStripMenuItem("Выход", null, (s, e) => ExitThread()));
         }
 

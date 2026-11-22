@@ -289,6 +289,13 @@ function setOffline(a) {
   }
 }
 
+// значок из manifest (у «Скриншота» и «Записи экрана» — когда ничего не идёт)
+function setDefault(a) {
+  a.offline = false;
+  sendHost({ cmd: 'state', uuid: a.uuid, key: a.key, actionid: a.actionid,
+    param: { statelist: [{ uuid: a.uuid, key: a.key, actionid: a.actionid, type: 0, state: 0, textData: '', showtext: false }] } });
+}
+
 function alert(ctx) {
   const a = actions.get(ctx);
   if (a) sendHost({ cmd: 'showAlert', uuid: a.uuid, key: a.key, actionid: a.actionid });
@@ -350,11 +357,9 @@ function watch(force) {
       if (isStatic(a)) {
         // картинка своя (из manifest): после «Qural не отвечает» вернуть её.
         // Флаг отдельный: при подключении a.offline сбрасывается раньше, чем сюда доходит очередь
-        if (pipeOk && a.needDefault) {
-          a.needDefault = false;
-          sendHost({ cmd: 'state', uuid: a.uuid, key: a.key, actionid: a.actionid,
-            param: { statelist: [{ uuid: a.uuid, key: a.key, actionid: a.actionid, type: 0, state: 0, textData: '', showtext: false }] } });
-        }
+        if (pipeOk && a.needDefault) { a.needDefault = false; setDefault(a); }
+        // Qural присылает анимацию, пока идёт скриншот, отсчёт или запись; у «Скриншота» app — что по долгому нажатию
+        tiles.push({ id: ctx, app: isShot(a) ? settingsOf(a).hold : '', kind: isShot(a) ? 'shot-key' : 'rec-key' });
         continue;
       }
       const dial = a.controller === 'Encoder';
@@ -404,7 +409,8 @@ function onQural(m) {
   if (m.type === 'tiles') {
     for (const t of m.tiles) {
       const a = actions.get(t.id);
-      if (a && a.active) setImage(a, t.png, t.title, t.value, t.gif);
+      if (!a || !a.active) continue;
+      if (t.reset) setDefault(a); else setImage(a, t.png, t.title, t.value, t.gif);
     }
   } else if (m.type === 'apps') {
     for (const ctx of piWaiting) {

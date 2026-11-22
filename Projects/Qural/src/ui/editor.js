@@ -49,7 +49,23 @@
   function undo() { const h = hist.pop(); if (!h) return; Object.assign(E, JSON.parse(h)); renderTl(); outInfo(); }
 
   // ── просмотр ──
+  // ── звук просмотра: дорожки → усиление → ограничитель (как alimiter при сохранении) → колонки ──
+  let actx = null; const gains = {};
+  function route(k, a) {
+    try {
+      if (!actx) {
+        actx = new AudioContext();
+        const lim = actx.createDynamicsCompressor();
+        lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.08;
+        lim.connect(actx.destination); actx.limiter = lim;
+      }
+      const g = actx.createGain();
+      actx.createMediaElementSource(a).connect(g).connect(actx.limiter);
+      gains[k] = g;
+    } catch (e) { send({ type: 'log', text: 'web audio: ' + e.message }); }
+  }
   function play() {
+    if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
     if (v.currentTime < E.start || v.currentTime >= E.end - 0.05) seek(E.start);
     v.play().catch(() => {});
     for (const a of Object.values(audios)) { a.currentTime = v.currentTime; a.play().catch(() => {}); }
@@ -185,8 +201,10 @@
     const muted = E[k + 'Mute'];
     $(k + 'Mute').innerHTML = muted ? ICON_MUTE : ICON_VOL;
     $(k + 'Row').classList.toggle('muted', muted);
-    // в просмотре громче 100 % не сделать — услышите при сохранении
-    if (audios[k]) audios[k].volume = muted ? 0 : Math.min(1, E[k + 'Vol'] / 100);
+    // громкость через Web Audio (усиление до 200 % слышно сразу); не вышло — обычная громкость, не выше 100 %
+    const vol = muted ? 0 : E[k + 'Vol'] / 100;
+    if (gains[k]) gains[k].gain.setTargetAtTime(vol, actx.currentTime, 0.015);
+    else if (audios[k]) audios[k].volume = Math.min(1, vol);
     outInfo();
   }
   for (const k of ['sys', 'mic']) {
@@ -356,7 +374,9 @@
         v.src = m.video;
         for (const k of ['sys', 'mic']) {
           if (!m[k]) continue;
-          const a = new Audio(); a.preload = 'auto'; a.src = m[k]; audios[k] = a;
+          // crossOrigin — иначе Web Audio получит тишину: звук с qural.media, страница с qural.ui
+          const a = new Audio(); a.crossOrigin = 'anonymous'; a.preload = 'auto'; a.src = m[k]; audios[k] = a;
+          route(k, a);
         }
         noiseUrl.off = m.mic;
         setVol('sys'); setVol('mic');
