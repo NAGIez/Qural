@@ -48,6 +48,21 @@ namespace Qural
 
             try { TrayApp.SetAutostart(false); } catch (Exception) { }
 
+            // «Сеть»: остановить net-merge (он уберёт виртуальный адаптер) и помощник трафика, убрать их задачу Windows
+            try
+            {
+                string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string ctl = Path.Combine(Path.Combine(local, "net-merge"), "ctl");
+                if (Process.GetProcessesByName("net-merge-tray").Length > 0) { Directory.CreateDirectory(ctl); File.WriteAllBytes(Path.Combine(ctl, "off"), new byte[0]); }
+                File.WriteAllText(NetMon.StopFile, "");
+                for (int i = 0; i < 40 && Process.GetProcessesByName("net-merge-tray").Length > 0; i++) System.Threading.Thread.Sleep(250);
+                // задача создана с правами администратора — удалить её можно так же (окно UAC)
+                var q = new ProcessStartInfo("schtasks.exe", "/Query /TN \"" + NetMerge.TaskName + "\"") { CreateNoWindow = true, UseShellExecute = false };
+                using (var p = Process.Start(q)) { p.WaitForExit(5000); if (p.ExitCode == 0)
+                    using (var d = Process.Start(new ProcessStartInfo("schtasks.exe", "/Delete /F /TN \"" + NetMerge.TaskName + "\"") { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden })) d.WaitForExit(30000); }
+            }
+            catch (Exception) { }
+
             // что поставил установщик: ярлыки и плагины деки
             foreach (var line in File.ReadAllLines(marker))
             {

@@ -61,7 +61,7 @@ namespace Qural
             Activated += (s, e) => { isActive = true; UpdateLiveTimer(); if (ready) { PostWindowState(); SendColor(); PushSoundLive(); } };
             Deactivate += (s, e) => { isActive = false; UpdateLiveTimer(); if (ready) PostWindowState(); };
             Load += (s, e) => InitWeb();
-            FormClosing += (s, e) => { live.Stop(); saveTimer.Stop(); app.Color.Save(); app.Sound.Save(); app.General.Save(); app.Shot.Save(); app.Rec.Save(); app.RegisterHotkeys(); };
+            FormClosing += (s, e) => { NetWatch(false); live.Stop(); saveTimer.Stop(); app.Color.Save(); app.Sound.Save(); app.General.Save(); app.Shot.Save(); app.Rec.Save(); app.RegisterHotkeys(); };
             FormClosed += (s, e) => { web.Dispose(); app.WindowClosed(this); };
         }
 
@@ -220,6 +220,7 @@ namespace Qural
                 case "sound": OnSound(m); break;
                 case "shot": OnShot(m); break;
                 case "rec": OnRec(m); break;
+                case "net": OnNet(m); break;
             }
         }
 
@@ -241,6 +242,7 @@ namespace Qural
 
                 case "theme":
                     bool dark = Bool(m, "dark");
+                    if (app.General.TrayTheme != (dark ? "dark" : "light")) { app.General.TrayTheme = dark ? "dark" : "light"; app.General.Save(); }
                     SetDarkTitle(dark);
                     BackColor = dark ? System.Drawing.Color.FromArgb(11, 13, 20) : System.Drawing.Color.FromArgb(242, 244, 248);
                     web.DefaultBackgroundColor = BackColor;
@@ -259,7 +261,8 @@ namespace Qural
 
                 case "page":
                     string page = Str(m, "page");
-                    if (page == "home" || page == "color" || page == "sound" || page == "shot" || page == "rec" || page == "general") { app.General.Page = page; app.General.Save(); }
+                    if (page == "home" || page == "color" || page == "sound" || page == "shot" || page == "rec" || page == "net" || page == "general") { app.General.Page = page; app.General.Save(); }
+                    NetWatch(page == "net");
                     if (page == "shot") SendShot(); // Lightshot и «Ножницы» могли запустить / выключить, пока окно было открыто
                     UpdateLiveTimer();
                     if (page == "sound" || page == "home") PushSoundLive();
@@ -296,6 +299,7 @@ namespace Qural
                     app.SetModule("sound", Bool(m, "sound"));
                     app.SetModule("shot", Bool(m, "shot"));
                     app.SetModule("rec", Bool(m, "rec"));
+                    app.SetModule("net", Bool(m, "net"));
                     TrayApp.SetAutostart(Bool(m, "autostart"));
                     app.General.Setup = "done";
                     app.General.Page = "home";
@@ -378,6 +382,8 @@ namespace Qural
                 soundOn = !app.General.SoundOff,
                 shotOn = !app.General.ShotOff,
                 recOn = !app.General.RecOff,
+                netInstalled = NetMerge.Installed,
+                netOn = !app.General.NetOff,
                 welcome = app.General.Setup == "pending",
                 busy = app.LastBusy,
                 exe = Application.ExecutablePath
@@ -392,6 +398,7 @@ namespace Qural
             if ((((Keys)key) & Keys.KeyCode) == Keys.None) key = 0;
             string from = app.TakeHotkey(key, owner, action);
             set(key);
+            RecLog.Write("клавиша: " + owner + " → " + (key == 0 ? "нет" : HotkeyText.Format(key)) + (from != null ? " (забрана у «" + from + "»)" : ""));
             app.Color.Save(); app.Sound.Save(); app.Shot.Save(); app.Rec.Save();
             string busy = app.RegisterHotkeys();
             SendShell(); SendColor(); SendSound(); SendShot(); SendRec();
@@ -409,6 +416,8 @@ namespace Qural
             d["mod"] = mod;
             web.CoreWebView2.PostWebMessageAsJson(json.Serialize(d));
         }
+
+        public void ShowPage(string page) { if (ready) Post("shell", new { type = "show", page = page }); }
 
         void Toast(string mod, string text, bool undo) { Post(mod, new { type = "toast", text = text, undo = undo }); }
 

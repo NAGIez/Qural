@@ -446,8 +446,10 @@ class SetupForm : Form
 
     void DoInstall(string dir, bool wantDesktop, bool wantPlugins, bool wantClaude)
     {
-        // Qural из этой папки работает — закрыть, иначе файлы заняты
+        // Qural из этой папки работает — закрыть, иначе файлы заняты.
+        // «Сеть»: net-merge и помощник трафика работают с правами администратора — их не убить, просим выйти самих
         Progress("Закрываю запущенный Qural…", 2);
+        StopNetModule();
         foreach (var name in new[] { "Qural", "ffmpeg" })
             foreach (var p in Process.GetProcessesByName(name))
                 try { if (p.MainModule.FileName.StartsWith(dir, StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(5000); } } catch (Exception) { }
@@ -526,6 +528,22 @@ class SetupForm : Form
         }
         if (ulanziWasRunning && File.Exists(UlanziExe)) try { Process.Start(UlanziExe, "--autorun"); } catch (Exception) { }
         Progress("Готово", 100);
+    }
+
+    // «Сеть»: метка off — net-merge сам уберёт виртуальный адаптер и выйдет; net-apps.stop — помощник трафика выйдет
+    static void StopNetModule()
+    {
+        try
+        {
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string ctl = Path.Combine(Path.Combine(local, "net-merge"), "ctl");
+            if (Process.GetProcessesByName("net-merge-tray").Length > 0) { Directory.CreateDirectory(ctl); File.WriteAllBytes(Path.Combine(ctl, "off"), new byte[0]); }
+            string q = Path.Combine(local, "Qural");
+            Directory.CreateDirectory(q);
+            File.WriteAllText(Path.Combine(q, "net-apps.stop"), "");
+            for (int i = 0; i < 40 && Process.GetProcessesByName("net-merge-tray").Length > 0; i++) Thread.Sleep(250);
+        }
+        catch (Exception) { }
     }
 
     // в архивах, собранных .NET Framework, разделитель — «\»

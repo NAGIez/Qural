@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Discord } from './discord.js';
 import { Speak } from './speak.js';
+import { Page } from './page.js';
 
 const MAIN = 'com.qural.deck.discord';
 const SPEAK = 'com.qural.deck.discord.speaking';   // кнопка «Кто говорит»
@@ -30,6 +31,7 @@ const TITLE = { normal: 'Discord', mute: 'Микрофон выкл', deaf: 'З�
 
 const actions = new Map(); // context → { uuid, key, actionid, controller, active, shown }
 const ctxOf = j => j.uuid + '___' + j.key + '___' + j.actionid;
+const page = new Page(pluginDir, 'discord', actions, null, fs.existsSync(path.join(pluginDir, 'debug-img')) ? (...m) => log(...m) : null);   // какие кнопки сейчас на экране (page.js)
 const pis = new Set();     // кнопки, у которых открыто окно настройки
 
 let cur = { state: 'setup', note: 'Нужны ID и секрет приложения' };
@@ -62,16 +64,35 @@ function connectHost() {
   ws.on('close', () => { log('host: closed'); process.exit(0); });
   ws.on('error', e => log('host error', e.message));
 }
-function sendHost(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
+// Картинки на деку. Ulanzi шлёт «кнопка видна» по два раза, и две картинки одной кнопке за пару миллисекунд
+// дека не переваривает — кнопка гаснет до следующей картинки. Поэтому: одной кнопке — одно сообщение
+// за 50 мс (последнее побеждает), и ту же самую картинку повторно — не раньше чем через секунду.
+const imgPending = new Map(), imgLast = new Map();
+function sendHost(obj) {
+  const img = obj.cmd === 'state' || obj.cmd === 'setFeedback';
+  if (!img) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); return; }
+  const k = ctxOf(obj);
+  clearTimeout(imgPending.get(k));
+  imgPending.set(k, setTimeout(() => {
+    imgPending.delete(k);
+    { const b = actions.get(k); if (b && !b.active) return; }   // кнопку уже спрятали (страницу сменили) — не слать
+    const s = JSON.stringify(obj), last = imgLast.get(k), now = Date.now();
+    if (last && last.s === s && now - last.at < 1000) return;
+    imgLast.set(k, { s, at: now });
+    if (ws && ws.readyState === WebSocket.OPEN) { ws.send(s); if (DEBUG_IMG) log('IMG', obj.key, obj.cmd, s.length); }
+  }, 50));
+}
+const DEBUG_IMG = (() => { try { return fs.existsSync(path.join(pluginDir, 'debug-img')); } catch { return false; } })();
 
 function onHost(d) {
+  if (DEBUG_IMG && d.cmd && !/^(keydown|keyup|dialdown|dialup|dialrotate)$/.test(d.cmd)) log('EV', d.cmd, d.key, 'active=' + d.active, String(d.actionid || '').slice(0, 6));   // отладка: файл debug-img в папке плагина
   const cmd = d.cmd;
   if (cmd === 'clear') { for (const p of d.param || []) { actions.delete(ctxOf(p)); pis.delete(ctxOf(p)); } return; }
   if (!d.uuid || d.key === undefined) return;
   const ctx = ctxOf(d);
   let a = actions.get(ctx);
   if (!a) {
-    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (/_3$/.test(d.key) ? 'Encoder' : 'Keypad'), active: true, shown: '' };
+    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (/_3$/.test(d.key) ? 'Encoder' : 'Keypad'), active: false, shown: '' };
     actions.set(ctx, a);
   }
   if (d.controller) a.controller = d.controller;
@@ -80,14 +101,19 @@ function onHost(d) {
     // add — кнопку поставили; paramfromapp/paramfromplugin — дека подключилась или загрузила страницу:
     // картинку надо прислать заново, иначе на самой деке кнопка чёрная (в приложении — старая картинка)
     case 'add':
+      page.shown(a); a.shown = ''; draw(a);
+      again(a);
+      break;
+    // параметры и настройки — видимость не меняют: их присылают и кнопкам другой страницы
     case 'paramfromapp':
     case 'paramfromplugin':
     case 'didReceiveSettings':
-      a.active = true; a.shown = ''; draw(a);
-      // дека после подключения иногда пропускает первую картинку — повторить чуть позже
-      clearTimeout(a.again); a.again = setTimeout(() => { a.shown = ''; draw(a); }, 1500);
+      if (a.active) { a.shown = ''; draw(a); again(a); }
       break;
-    case 'setactive': a.active = d.active !== false; a.shown = ''; if (a.active) draw(a); break;
+    case 'setactive':
+      if (d.active === false) { a.active = false; break; }
+      page.shown(a); a.shown = ''; draw(a); again(a);
+      break;
     case 'keydown':
     case 'dialdown':
       a.down = Date.now(); a.held = false;
@@ -163,6 +189,14 @@ function draw(a) {
   }
 }
 function redraw() { for (const a of actions.values()) draw(a); }
+
+// кнопка только что появилась на экране (старт деки, смена страницы): дека иногда пропускает первую картинку,
+// а в приложении при этом всё видно — присылаем ещё раз через 1,5 с
+function again(a) {
+  clearTimeout(a.again1); clearTimeout(a.again2);
+  const re = () => { if (a.active) { a.shown = ''; draw(a); } };
+  a.again1 = setTimeout(re, 1500);
+}
 
 // окну настройки — состояние и сохранён ли ID (секрет обратно не отдаём)
 function toPI() {

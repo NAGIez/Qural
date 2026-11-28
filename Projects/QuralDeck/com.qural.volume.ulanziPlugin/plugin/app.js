@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { statsPng, statsTitle } from './stats.js';
+import { Page } from './page.js';
 
 const MAIN = 'com.qural.deck.volume';
 const COLOR_ACTION = 'com.qural.deck.volume.color'; // кнопка профиля цвета
@@ -16,6 +17,8 @@ const isColor = a => a.uuid === COLOR_ACTION;
 const isMedia = a => a.uuid === MEDIA_ACTION;
 const STATS_ACTION = 'com.qural.deck.volume.stats'; // «Нагрузка ПК»: цифры от Qural, картинку рисует плагин
 const isStats = a => a.uuid === STATS_ACTION;
+const NET_ACTION = 'com.qural.deck.volume.net';     // «Сеть»: net-merge — скорость рисует Qural, нажатие — вкл / пауза
+const isNet = a => a.uuid === NET_ACTION;
 const SHOT_ACTION = 'com.qural.deck.volume.shot'; // «Скриншот»: картинка из manifest, нажатие — команда Qural
 const isShot = a => a.uuid === SHOT_ACTION;
 const REC_ACTION = 'com.qural.deck.volume.rec';   // «Запись экрана»: начать / остановить или пауза
@@ -39,6 +42,8 @@ process.on('unhandledRejection', e => log('ERR', e && e.stack || String(e)));
 // ── кнопки: context → { uuid, key, actionid, controller, settings, active } ──
 const actions = new Map();
 const ctxOf = j => j.uuid + '___' + j.key + '___' + j.actionid;
+// какие кнопки сейчас на экране (page.js); спрятанные — Qural перестаёт их рисовать
+const page = new Page(pluginDir, 'volume', actions, () => watch(), fs.existsSync(path.join(pluginDir, 'debug-img')) ? (...m) => log(...m) : null);
 
 function settingsOf(a) {
   const s = a.settings || {};
@@ -70,11 +75,37 @@ function connectHost() {
   ws.on('error', e => log('host error', e.message));
 }
 
+// Картинки на деку. Ulanzi шлёт «кнопка видна» по два раза, и две картинки одной кнопке за пару миллисекунд
+// дека не переваривает — кнопка гаснет до следующей картинки. Поэтому: одной кнопке — одно сообщение
+// за 50 мс (последнее побеждает), и ту же самую картинку повторно — не раньше чем через секунду.
+const imgPending = new Map(), imgLast = new Map();
 function sendHost(obj) {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+  const img = obj.cmd === 'state' || obj.cmd === 'setFeedback';
+  if (!img) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); return; }
+  const k = ctxOf(obj);
+  { const a = actions.get(k); if (a) a.lastMsg = obj; }   // последняя картинка кнопки — для again
+  clearTimeout(imgPending.get(k));
+  imgPending.set(k, setTimeout(() => {
+    imgPending.delete(k);
+    { const b = actions.get(k); if (b && !b.active) return; }   // кнопку уже спрятали (страницу сменили) — не слать
+    const s = JSON.stringify(obj), last = imgLast.get(k), now = Date.now();
+    if (last && last.s === s && now - last.at < 1000) return;
+    imgLast.set(k, { s, at: now });
+    if (ws && ws.readyState === WebSocket.OPEN) { ws.send(s); if (DEBUG_IMG) log('IMG', obj.key, obj.cmd, s.length); }
+  }, 50));
+}
+const DEBUG_IMG = (() => { try { return fs.existsSync(path.join(pluginDir, 'debug-img')); } catch { return false; } })();
+
+// кнопка только что появилась на экране (старт деки, смена страницы): дека иногда пропускает картинку,
+// а в приложении при этом всё видно — присылаем последнюю ещё раз через 1,5 с
+function again(a) {
+  clearTimeout(a.again1); clearTimeout(a.again2);
+  const re = () => { if (a.active && a.lastMsg) sendHost(a.lastMsg); };
+  a.again1 = setTimeout(re, 1500);
 }
 
 function onHost(d) {
+  if (DEBUG_IMG && d.cmd && !/^(keydown|keyup|dialdown|dialup|dialrotate)$/.test(d.cmd)) log('EV', d.cmd, d.key, 'active=' + d.active, String(d.actionid || '').slice(0, 6));   // отладка: файл debug-img в папке плагина
   const cmd = d.cmd;
   if (cmd === 'clear') {
     for (const p of d.param || []) actions.delete(ctxOf(p));
@@ -86,31 +117,35 @@ function onHost(d) {
   let a = actions.get(ctx);
 
   if (cmd === 'add') {
-    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (a && a.controller) || 'Keypad', settings: d.param || {}, active: true };
+    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (a && a.controller) || 'Keypad', settings: d.param || {}, active: false };
     actions.set(ctx, a);
-    watch(true);
+    page.shown(a); watch(true); again(a);
     return;
   }
   if (!a) {
     // Ulanzi иногда шлёт события раньше add (например, после перезапуска плагина) — заводим кнопку сами
     if (!['paramfromapp', 'paramfromplugin', 'didReceiveSettings', 'keydown', 'dialdown', 'dialup', 'dialrotate', 'setactive', 'sendToPlugin'].includes(cmd)) return;
-    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (/_3$/.test(d.key) ? 'Encoder' : 'Keypad'), settings: d.param || {}, active: true };
+    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, controller: d.controller || (/_3$/.test(d.key) ? 'Encoder' : 'Keypad'), settings: d.param || {}, active: false };
     actions.set(ctx, a);
   }
   if (d.controller) a.controller = d.controller;
 
   switch (cmd) {
+    // параметры кнопки (дека подключилась, открыли настройку в приложении) — видимость не меняют:
+    // их присылают и кнопкам другой страницы
     case 'paramfromapp':
     case 'paramfromplugin':
-      if (d.param) { a.settings = d.param; watch(true); }
+      if (d.param) a.settings = d.param;
+      if (a.active) { watch(true); again(a); }
       break;
     case 'didReceiveSettings':
       if (d.settings) { a.settings = d.settings; watch(true); }
       break;
     case 'setactive':
-      a.active = d.active !== false;
+      if (d.active === false) { a.active = false; watch(); break; }
+      page.shown(a);
       a.offline = false; // страницу показали снова — картинку надо прислать заново
-      watch(a.active);
+      watch(true); again(a);
       break;
     case 'keydown': {
       if (d.param && Object.keys(d.param).length) a.settings = d.param;
@@ -131,6 +166,7 @@ function onHost(d) {
       if (isRec(a)) { log('rec key', s.press, s.mode); if (pipeOk) toQural({ cmd: 'rec', id: ctx, value: s.press, mode: s.mode }); else alert(ctx); break; }
       if (isMedia(a)) { holdLike(ctx, a); break; }   // нажатия считаем по отпусканию; долгое — лайк
       if (isStats(a)) break;   // «Нагрузка ПК» только показывает — нажатие ничего не делает
+      if (isNet(a)) { if (pipeOk) toQural({ cmd: 'net', id: ctx, value: 'toggle' }); else alert(ctx); break; }
       volume(ctx, s.app, s.press === 'up' ? (s.step ? '+' + s.step : 'up') : s.press === 'down' ? (s.step ? '-' + s.step : 'down') : 'mute');
       break;
     }
@@ -366,6 +402,7 @@ function watch(force) {
       if (isColor(a)) tiles.push({ id: ctx, app: settingsOf(a).profile, kind: dial ? 'color-dial' : 'color-key' });
       else if (isMedia(a)) tiles.push({ id: ctx, app: '', kind: dial ? 'media-dial' : 'media-key' });
       else if (isStats(a)) { a.statsSig = ''; tiles.push({ id: ctx, app: '', kind: dial ? 'stats-dial' : 'stats-key' }); }
+      else if (isNet(a)) tiles.push({ id: ctx, app: '', kind: 'net-key' });
       else tiles.push({ id: ctx, app: settingsOf(a).app, kind: dial ? 'dial' : 'key' });
     }
     const text = JSON.stringify(tiles);
@@ -379,6 +416,7 @@ function watch(force) {
     lastWatch = text;
     if (force) toQural({ cmd: 'watch', tiles: [] }); // сбросить — Qural пришлёт все картинки заново
     toQural({ cmd: 'watch', tiles });
+    if (DEBUG_IMG) log('WATCH', tiles.map(t => actions.get(t.id).key + ':' + t.kind).join(' '));
   }, 30);
 }
 
@@ -409,6 +447,7 @@ function onQural(m) {
   if (m.type === 'tiles') {
     for (const t of m.tiles) {
       const a = actions.get(t.id);
+      if (DEBUG_IMG) log('TILE', a ? a.key : '?', a ? (a.active ? 'on' : 'off') : '', String(a && a.uuid || '').split('.').pop(), t.reset ? 'reset' : (t.title || '') + ' ' + (t.value || ''));
       if (!a || !a.active) continue;
       if (t.reset) setDefault(a); else setImage(a, t.png, t.title, t.value, t.gif);
     }

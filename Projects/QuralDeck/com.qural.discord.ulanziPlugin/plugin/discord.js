@@ -91,8 +91,31 @@ export class Discord {
   }
 
   static load(log) {
+    if (!fs.existsSync(CFG)) Discord.migrate(log);
     try { return JSON.parse(fs.readFileSync(CFG, 'utf8')); }
     catch (e) { if (log && e.code !== 'ENOENT') log('discord: не прочитал настройки — ' + (e.code || e.name)); return {}; }
+  }
+
+  // Ulanzi или Qural, запущенные из приложения Claude, работают внутри его пакета, и новые файлы в %APPDATA%\Qural
+  // попадают в его скрытую копию: %LOCALAPPDATA%\Packages\Claude_…\LocalCache\Roaming\Qural. После перезагрузки
+  // Ulanzi стартует сама и этих файлов не видит. Нет настроек — ищем их там и переносим в настоящую папку
+  // (заодно spotify.json Qural — лайки в Spotify). Только на этом компьютере; что уже есть — не трогаем.
+  static migrate(log) {
+    const pk = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Packages');
+    let dirs = [];
+    try { dirs = fs.readdirSync(pk).filter(d => /^Claude_/.test(d)).map(d => path.join(pk, d, 'LocalCache', 'Roaming', 'Qural')); } catch { return; }
+    for (const name of ['deck-discord.json', 'spotify.json']) {
+      const dst = path.join(path.dirname(CFG), name);
+      if (fs.existsSync(dst)) continue;
+      const src = dirs.map(d => path.join(d, name)).find(f => fs.existsSync(f));
+      if (!src) continue;
+      try {
+        JSON.parse(fs.readFileSync(src, 'utf8'));   // целый ли
+        fs.mkdirSync(path.dirname(dst), { recursive: true });
+        fs.copyFileSync(src, dst, fs.constants.COPYFILE_EXCL);
+        if (log) log('discord: перенёс ' + name + ' из копии AppData приложения Claude');
+      } catch (e) { if (log) log('discord: не перенёс ' + name + ' — ' + (e.code || e.name)); }
+    }
   }
   save() {
     try { fs.mkdirSync(path.dirname(CFG), { recursive: true }); fs.writeFileSync(CFG, JSON.stringify(this.cfg)); }

@@ -12,6 +12,7 @@ import { Limits } from './limits.js';
 import { Usage } from './usage.js';
 import { Focus } from './focus.js';
 import { clockGif, clockStamp } from './clock.js';
+import { Page } from './page.js';
 
 const MAIN = 'com.qural.deck.claude';
 const [address = '127.0.0.1', port = '3906'] = process.argv.slice(2);
@@ -64,6 +65,7 @@ const LABEL = { question: 'выберите', idle: 'ваш ход', thinking: '
 // ── кнопки: context → { uuid, key, actionid, kind, settings, active, shown } ──
 const actions = new Map();
 const ctxOf = j => j.uuid + '___' + j.key + '___' + j.actionid;
+const page = new Page(pluginDir, 'claude', actions, null, fs.existsSync(path.join(pluginDir, 'debug-img')) ? (...m) => log(...m) : null);   // какие кнопки сейчас на экране (page.js)
 
 // ════════════ Ulanzi Studio ════════════
 let ws = null;
@@ -80,11 +82,28 @@ function connectHost() {
   ws.on('error', e => log('host error', e.message));
 }
 
+// Картинки на деку. Ulanzi шлёт «кнопка видна» по два раза, и две картинки одной кнопке за пару миллисекунд
+// дека не переваривает — кнопка гаснет до следующей картинки. Поэтому: одной кнопке — одно сообщение
+// за 50 мс (последнее побеждает), и ту же самую картинку повторно — не раньше чем через секунду.
+const imgPending = new Map(), imgLast = new Map();
 function sendHost(obj) {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+  const img = obj.cmd === 'state' || obj.cmd === 'setFeedback';
+  if (!img) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); return; }
+  const k = ctxOf(obj);
+  clearTimeout(imgPending.get(k));
+  imgPending.set(k, setTimeout(() => {
+    imgPending.delete(k);
+    { const b = actions.get(k); if (b && !b.active) return; }   // кнопку уже спрятали (страницу сменили) — не слать
+    const s = JSON.stringify(obj), last = imgLast.get(k), now = Date.now();
+    if (last && last.s === s && now - last.at < 1000) return;
+    imgLast.set(k, { s, at: now });
+    if (ws && ws.readyState === WebSocket.OPEN) { ws.send(s); if (DEBUG_IMG) log('IMG', obj.key, obj.cmd, s.length); }
+  }, 50));
 }
+const DEBUG_IMG = (() => { try { return fs.existsSync(path.join(pluginDir, 'debug-img')); } catch { return false; } })();
 
 function onHost(d) {
+  if (DEBUG_IMG && d.cmd && !/^(keydown|keyup|dialdown|dialup|dialrotate)$/.test(d.cmd)) log('EV', d.cmd, d.key, 'active=' + d.active, String(d.actionid || '').slice(0, 6));   // отладка: файл debug-img в папке плагина
   if (d.cmd === 'clear') {
     for (const p of d.param || []) actions.delete(ctxOf(p));
     syncUsage();
@@ -96,7 +115,7 @@ function onHost(d) {
   const ctx = ctxOf(d);
   let a = actions.get(ctx);
   if (!a) {
-    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, kind, settings: {}, active: true, shown: '', controller: '' };
+    a = { uuid: d.uuid, key: d.key, actionid: d.actionid, kind, settings: {}, active: false, shown: '', controller: '' };
     actions.set(ctx, a);
   }
   // кнопка или крутилка: Ulanzi сообщает в add; без него — крутилки в нижнем ряду (ключи «x_3»)
@@ -106,19 +125,25 @@ function onHost(d) {
 
   switch (d.cmd) {
     case 'add':
+      page.shown(a); a.shown = ''; draw(a); again(a);
+      if (a.kind === 'limits') syncUsage();
+      break;
+    // параметры кнопки (дека подключилась, открыли настройку в приложении) — видимость не меняют:
+    // их присылают и кнопкам другой страницы
     case 'paramfromapp':
     case 'paramfromplugin':
-      a.active = true; a.shown = ''; draw(a);
+      if (a.active) { a.shown = ''; draw(a); again(a); }
       if (a.kind === 'limits') syncUsage();
       break;
     case 'didReceiveSettings':
       if (d.settings) { a.settings = d.settings; a.shown = ''; a.view = undefined; redraw(); syncUsage(); } // например, выключили лимиты с сервера
       break;
     case 'setactive':
-      a.active = d.active !== false; a.shown = '';
-      if (a.active) draw(a);
+      if (d.active === false) { a.active = false; break; }
+      page.shown(a); a.shown = ''; draw(a); again(a);
       break;
     case 'keydown':
+      if (!a.active) { page.mark(a); a.shown = ''; draw(a); }   // нажали — значит, на экране
       if (a.kind === 'status') { a.downAt = Date.now(); break; }   // решаем на отпускании: коротко или долго
       press(ctx, a);
       break;
@@ -171,7 +196,7 @@ function rotate(ctx, a, dir) {
       // по кругу: 5 часов → неделя → лимиты по модели → контекст
       const views = limits.views(currentContext());
       const i = views.indexOf(a.view);
-      a.view = views[(i + (dir > 0 ? 1 : views.length - 1)) % views.length];
+      a.view = views[(i + (dir > 0 ? 1 : views.length - 1)) % views.length]; a.fellBack = false;   // выбрали сами
       a.shown = ''; draw(a);
       break;
     }
@@ -204,7 +229,7 @@ function press(ctx, a) {
       if (a.racing) break;
       // нажатие — следующее окно: всё вместе → 5 часов → неделя → Fable → контекст
       const views = limits.views(currentContext());
-      a.view = views[(views.indexOf(a.view) + 1) % views.length];
+      a.view = views[(views.indexOf(a.view) + 1) % views.length]; a.fellBack = false;
       a.shown = ''; draw(a);
       if (!limits.data) usage.poll();
       break;
@@ -315,10 +340,33 @@ function draw(a) {
     param: { statelist: [{ uuid: a.uuid, key: a.key, actionid: a.actionid, ...item, textData: '', showtext: false }] } });
 }
 
+// кнопка только что появилась на экране (старт деки, смена страницы): дека иногда пропускает первую картинку,
+// а в приложении при этом всё видно — присылаем ещё раз через 1,5 с
+function again(a) {
+  clearTimeout(a.again1); clearTimeout(a.again2);
+  const re = () => { if (a.active && !a.playing && !a.racing) { a.shown = ''; draw(a); } };
+  a.again1 = setTimeout(re, 1500);
+}
+
 // ── лимиты ──
+// что показывает кнопка: выбранное в настройке, а если его сейчас нет (контекст не найден, лимит по модели не пришёл) —
+// временно «всё вместе»; как только выбранное появится — вернуться к нему
+function viewOf(a, ctx) {
+  const want = a.settings.show || 'all';
+  if (a.fellBack) {
+    const v = limits.resolve(want, ctx);
+    if (v !== 'all') { a.view = v; a.fellBack = false; }
+  }
+  if (!limits.views(ctx).includes(a.view)) {
+    a.view = limits.resolve(want, ctx);
+    a.fellBack = a.view === 'all' && want !== 'all';
+  }
+  return a.view;
+}
+
 function limitsFeedback(a) {
-  const ctx = currentContext(), views = limits.views(ctx);
-  if (!views.includes(a.view)) a.view = limits.resolve(a.settings.show, ctx);
+  const ctx = currentContext();
+  viewOf(a, ctx);
   const view = a.view, style = a.settings.style === 'num' ? 'num' : 'char';
   const png = limits.render(200, view, ctx, style).png;
   return { data: 'data:image/png;base64,' + png.toString('base64'), image: 'limits:' + limits.stamp(view, ctx, style), title: limits.dialTitle(view, ctx) };
@@ -326,8 +374,8 @@ function limitsFeedback(a) {
 
 function drawLimitsKey(a) {
   if (a.racing) return;   // идёт забег — не перебиваем
-  const ctx = currentContext(), views = limits.views(ctx);
-  if (!views.includes(a.view)) a.view = limits.resolve(a.settings.show, ctx);
+  const ctx = currentContext();
+  viewOf(a, ctx);
   const style = a.settings.style === 'num' ? 'num' : 'char';
   const stamp = 'limits:' + limits.stamp(a.view, ctx, style);
   if (a.shown === stamp) return;
@@ -436,7 +484,13 @@ function manualWindow() {
 }
 // контекст открытого в Claude чата (а если открытый не найден — той сессии, что последней что-то делала)
 const focus = new Focus(changed => { if (changed) { for (const a of actions.values()) a.shown = ''; } redraw(); }, (...a) => log(...a));
+let lastCtx = null;   // последний найденный контекст — если на миг не нашли (чат только создан, файл пишется), показываем его
 function currentContext() {
+  const c = findContext();
+  if (c) lastCtx = c;
+  return c || lastCtx;
+}
+function findContext() {
   const f = focus.focused();
   if (f) {
     const c = focus.context(f.cli);
@@ -444,11 +498,12 @@ function currentContext() {
       const pct = contextPct({ ctx: { tokens: c.tokens, model: c.model || f.model } });
       return { pct, tokens: c.tokens, title: f.title };
     }
+    // открыт новый чат, модель ещё не отвечала — контекст пустой, а не сводка лимитов вместо него
+    if (focus.transcriptOf(f.cli)) return { pct: 0, tokens: 0, title: f.title };
   }
   const s = sessions.get(lastCtxSession);
   const pct = contextPct(s);
   return pct === null ? null : { pct, tokens: s.ctx.tokens };
-
 }
 
 // Claude сейчас думает или работает — значит, «Стоп» имеет смысл

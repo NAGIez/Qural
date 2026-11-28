@@ -149,6 +149,23 @@
       "Tooltip": "Запись экрана Qural: нажатие — начать (область, окно или весь экран) или остановить; можно настроить на паузу",
       "UUID": "com.qural.deck.volume.rec",
       "SupportedInMultiActions": false
+    },
+    {
+      "Name": "Сеть",
+      "Icon": "assets/net.png",
+      "PropertyInspectorPath": "property-inspector/net.html",
+      "state": 0,
+      "States": [
+        {
+          "Image": "assets/net.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Tooltip": "Сеть Qural: общая скорость и скорость каждого подключения. Нажатие — включить или пауза",
+      "UUID": "com.qural.deck.volume.net",
+      "SupportedInMultiActions": false
     }
   ],
   "OS": [

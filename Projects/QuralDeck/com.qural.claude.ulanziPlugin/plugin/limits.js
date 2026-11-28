@@ -254,7 +254,10 @@ export class Limits {
     return name + (w.resets ? ' · сброс ' + Limits.when(w.resets, view !== 'five') : '');
   }
 
+  // отпечаток картинки: одно окно — только его строка (5 часов не перерисовываются от каждого ответа Claude,
+  // контекст — от обновления лимитов); «всё вместе» — всё
   stamp(view, ctx, style) {
+    if (view && view !== 'all') return JSON.stringify([view, style || '', this.row(view, ctx)]);
     return JSON.stringify([view || '', style || '', this.data && [this.data.five, this.data.week, this.data.extra], ctx && ctx.pct, ctx && Math.round(ctx.tokens / 1000)]);
   }
 }

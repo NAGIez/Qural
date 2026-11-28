@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+  <title>Qural — сеть</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css" />
+  <style>
+    .qr-note { margin: 10px 10px 10px 16px; color: var(--uspi-unitcolor); font-size: 12px; line-height: 1.45; max-width: 420px; }
+    .qr-note b { color: var(--uspi-textcolor); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper">
+    <p class="qr-note">
+      <b>Сеть</b> — все подключения сразу (кабель, Wi-Fi, телефон). Крупно — общая скорость приёма, ниже — отдачи;
+      полоски — скорость каждого подключения. Точка: зелёная — работает, жёлтая — пауза или ждёт второе подключение,
+      серая — выключено.<br /><br />
+      <b>Нажатие</b> — включить или поставить на паузу. Обновляется раз в секунду, пока кнопка видна на деке.<br /><br />
+      Нужен запущенный Qural с включённой «Сетью». Подключения, программы и настройки — в Qural, вкладка «Сеть».
+    </p>
+  </div>
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanzideckApi.js"></script>
+  <script>$UD.connect();</script>
+</body>
+</html>

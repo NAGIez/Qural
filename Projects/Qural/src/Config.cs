@@ -53,6 +53,7 @@ namespace Qural
                 case Keys.PageDown: return "PageDown";
                 case Keys.Scroll: return "ScrollLock";
                 case Keys.PrintScreen: return "PrtSc";
+                case Keys.Back: return "Backspace";
                 case Keys.Return: return "Enter";
                 case Keys.VolumeUp: return "Громкость +";
                 case Keys.VolumeDown: return "Громкость −";
@@ -439,6 +440,8 @@ namespace Qural
         [DataMember] public string Page = "home";      // открытая страница окна: home / color / sound / general
         [DataMember] public bool ColorOff, SoundOff;   // инструмент выключен целиком
         [DataMember] public bool ShotOff, RecOff;
+        [DataMember] public bool NetOff;               // «Сеть» (net-merge) выключена
+        [DataMember] public string TrayTheme;          // тема меню трея: как в окне (dark / light), null — как у Windows
         [DataMember] public bool NoUpdateCheck;        // не проверять обновления на GitHub
         [DataMember] public string UpdateNotified;     // о какой версии уже напомнили в трее (второй раз не напоминаем)
         // Первый запуск: "pending" — окно спросит, какие инструменты включить. У старых настроек поля нет (null) — уже настроено.
@@ -450,7 +453,7 @@ namespace Qural
             // нет файла и он не испорчен — Qural запускают впервые
             if (c == null) c = new GeneralConfig { Setup = Store.Broken.Contains("general.json") ? null : "pending" };
             if (c.TrayClick != "next") c.TrayClick = "open";
-            if (c.Page != "color" && c.Page != "sound" && c.Page != "shot" && c.Page != "rec" && c.Page != "general") c.Page = "home";
+            if (c.Page != "color" && c.Page != "sound" && c.Page != "shot" && c.Page != "rec" && c.Page != "net" && c.Page != "general") c.Page = "home";
             return c;
         }
 

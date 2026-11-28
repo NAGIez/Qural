@@ -31,7 +31,9 @@
       card('shot', g.shotOn !== false, 'Скриншоты', g.shotOn === false ? 'Выключены — клавиши скриншотов свободны.'
         : sh ? (sh.region ? `Область — ${esc(sh.region)}` : 'Клавиша не задана') + ' · файлы: ' + esc(sh.folder) : '…') +
       card('rec', g.recOn !== false, 'Запись экрана', g.recOn === false ? 'Выключена — клавиши записи свободны.'
-        : rc ? (rc.recording ? 'Идёт запись' : (rc.toggle ? `Начать — ${esc(rc.toggle)}` : 'Клавиша не задана') + ' · ' + esc(rc.codec === 'auto' ? rc.auto : rc.codec)) : '…'));
+        : rc ? (rc.recording ? 'Идёт запись' : (rc.toggle ? `Начать — ${esc(rc.toggle)}` : 'Клавиша не задана') + ' · ' + esc(rc.codec === 'auto' ? rc.auto : rc.codec)) : '…') +
+      (g.netInstalled ? card('net', g.netOn !== false, 'Сеть', g.netOn === false ? 'Выключена — интернет идёт через одно подключение.'
+        : 'Все подключения сразу: кабель, Wi-Fi и телефон — в одно. Скорость каждого и трафик за день и месяц.') : ''));
 
     // ── быстрые действия ──
     let q = '';

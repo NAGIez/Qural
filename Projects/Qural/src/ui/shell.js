@@ -29,13 +29,14 @@
     profile: '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11"/><path d="M8 2.5a5.5 5.5 0 010 11z" fill="currentColor"/>',
     rec: '<rect x="1.5" y="3.5" width="9.5" height="9" rx="1.6"/><path d="M11 7l3.5-2v6L11 9"/><circle cx="6.2" cy="8" r="1.6" fill="currentColor"/>',
     shot: '<path d="M2.5 5.5v-2a1 1 0 011-1h2M10.5 2.5h2a1 1 0 011 1v2M13.5 10.5v2a1 1 0 01-1 1h-2M5.5 13.5h-2a1 1 0 01-1-1v-2"/><circle cx="8" cy="8" r="2.2"/>',
+    net: '<circle cx="2.8" cy="4" r="1.2"/><circle cx="2.8" cy="12" r="1.2"/><path d="M4 4c3 0 3.5 4 6 4M4 12c3 0 3.5-4 6-4M10 8h3.5M11.8 6.2L13.6 8l-1.8 1.8"/>',
   };
   Q.svg = (name, cls) => `<svg class="${cls || 'qr-ni'}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
   const CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
   const PLUS = '<svg class="qr-ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>';
 
   // ---------- страницы ----------
-  const PAGE = { home: 'home', color: 'color', cprofile: 'color', sound: 'sound', sapp: 'sound', shot: 'shot', rec: 'rec', general: 'general' };
+  const PAGE = { home: 'home', color: 'color', cprofile: 'color', sound: 'sound', sapp: 'sound', shot: 'shot', rec: 'rec', net: 'net', general: 'general' };
   function show(view) {
     const old = Q.view;
     Q.view = view;
@@ -96,6 +97,12 @@
 
     if (g.shotOn !== false) h += `<button data-view="shot"${on('shot')}>${Q.svg('shot')}<span class="qr-pn">Скриншоты</span>${offChip(g.shotOn)}</button>`;
     if (g.recOn !== false || g.recording) h += `<button data-view="rec"${on('rec')}>${Q.svg('rec')}<span class="qr-pn">Запись экрана</span>${g.recording ? '<span class="gw-chip red">REC</span>' : offChip(g.recOn)}</button>`;
+    if (g.netInstalled && g.netOn !== false) {
+      const n = Q.state.net;
+      // скорость в меню не показываем: данные идут, только пока открыта сама вкладка
+      const chip = n && n.state === 'paused' ? '<span class="gw-chip orange">пауза</span>' : n && n.state === 'waiting' ? '<span class="gw-chip gray">ждёт</span>' : n && n.state === 'setup' ? '<span class="gw-chip blue">включить</span>' : '';
+      h += `<button data-view="net"${on('net')}>${Q.svg('net')}<span class="qr-pn">Сеть</span>${chip}</button>`;
+    }
     h += '<div class="qr-sep"></div>';
     h += `<button data-view="general"${on('general')}>${Q.svg('general')}<span class="qr-pn">Общие</span></button>`;
     // Пункты лежат во внутреннем блоке, а подсветка выбранного (бегунок GlassWise) — рядом с ним в #side:
@@ -147,7 +154,7 @@
     send({ type: 'module', name: m.dataset.module, on: m.checked });
   });
   function syncModules(g) {
-    const isOn = (mod) => (mod === 'color' ? g.colorOn : mod === 'shot' ? g.shotOn !== false : mod === 'rec' ? g.recOn !== false : g.soundOn);
+    const isOn = (mod) => (mod === 'color' ? g.colorOn : mod === 'shot' ? g.shotOn !== false : mod === 'rec' ? g.recOn !== false : mod === 'net' ? g.netOn !== false : g.soundOn);
     document.querySelectorAll('[data-module]').forEach((i) => (i.checked = isOn(i.dataset.module)));
     document.querySelectorAll('[data-offnote]').forEach((n) => (n.hidden = isOn(n.dataset.offnote)));
   }
@@ -211,74 +218,11 @@
   $('u-auto').addEventListener('change', (e) => send({ type: 'updateAuto', value: e.target.checked }));
   Q.on('shell', (m) => { if (m.type === 'update') { upd = m; renderUpdate(); } });
 
-  // ---------- команды для Ulanzi Deck / Stream Deck ----------
-  // аргумент командной строки: в кавычках, если есть пробелы; кавычки внутри — через \"
-  // правила Windows (CommandLineToArgvW): обратные косые перед кавычкой и в конце удваиваются
-  const arg = (v) => {
-    const s = String(v);
-    if (!/[\s"]/.test(s)) return s;
-    return '"' + s.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1') + '"';
-  };
-  // профиль с повторяющимся или «служебным» названием (next, число) — по номеру, иначе по названию
-  const profileArg = (p, i, all) => {
-    const n = p.name.trim().toLowerCase();
-    const clash = n === 'next' || /^\d+$/.test(n) || all.some((q, j) => j !== i && q.name.trim().toLowerCase() === n);
-    return clash ? String(i + 1) : p.name;
-  };
-  let cmds = [];
-  function renderCmds() {
-    const g = Q.state.shell, c = Q.state.color, s = Q.state.sound;
-    if (g && g.exe) $('g-exe').textContent = g.exe;
-    cmds = [];
-    const grp = (t) => cmds.push({ group: t });
-    const add = (label, args) => cmds.push({ label, args: args.map(arg).join(' ') });
-    grp('Цвет');
-    if (c) c.profiles.forEach((p, i) => add(`Профиль «${p.name}»`, ['--profile', profileArg(p, i, c.profiles)]));
-    add('Следующий профиль цвета', ['--profile', 'next']);
-    add('Сбросить мониторы к стандартным', ['--reset-colors']);
-    add('Включить / выключить «Цвет»', ['--color', 'toggle']);
-    grp('Звук');
-    add('Активное окно · громче', ['--volume', 'active', 'up']);
-    add('Активное окно · тише', ['--volume', 'active', 'down']);
-    add('Активное окно · без звука / вернуть', ['--volume', 'active', 'mute']);
-    if (s) s.apps.forEach((a) => {
-      add(`${a.title} · громче`, ['--volume', a.process, 'up']);
-      add(`${a.title} · тише`, ['--volume', a.process, 'down']);
-      add(`${a.title} · без звука / вернуть`, ['--volume', a.process, 'mute']);
-    });
-    add('Включить / выключить «Звук»', ['--sound', 'toggle']);
-    grp('Скриншоты');
-    add('Выделить область', ['--shot']);
-    add('Весь экран (монитор под курсором) — в папку и буфер', ['--shot', 'full']);
-    add('Окно в фокусе — в папку и буфер', ['--shot', 'window']);
-    grp('Запись экрана');
-    add('Начать / остановить (выбрать область или окно)', ['--rec']);
-    add('Записать весь экран', ['--rec', 'start', 'screen']);
-    add('Записать окно в фокусе', ['--rec', 'start', 'window']);
-    add('Пауза / продолжить', ['--rec', 'pause']);
-    grp('Окно');
-    add('Открыть Qural', ['--open']);
-    Q.setHTML($('g-cmds'), cmds.map((x, i) => x.group
-      ? `<li class="qr-cmdgrp">${esc(x.group)}</li>`
-      : `<li><div class="gw-t"><b>${esc(x.label)}</b><code>${esc(x.args)}</code></div><button class="gw-pill" data-cmd="${i}">Копировать</button></li>`).join(''));
-  }
-  $('g-cmds').addEventListener('click', (e) => { const b = e.target.closest('[data-cmd]'); if (b && cmds[+b.dataset.cmd]) send({ type: 'copy', text: cmds[+b.dataset.cmd].args }); });
-  $('g-exeCopy').onclick = () => { const g = Q.state.shell; if (g && g.exe) send({ type: 'copy', text: g.exe }); };
-  $('g-makeLinks').onclick = () => send({ type: 'shortcuts', list: cmds.filter((x) => !x.group).map((x) => ({ label: x.label, args: x.args })) });
-  Q.on('shell', (m) => {
-    if (m.type === 'shortcutsDone') {
-      $('g-linksDone').textContent = `Готово: ${m.count} ярлыков в папке «${m.dir}»`;
-      GW.toast('Ярлыки созданы — папка открыта');
-    } else if (m.type === 'toast') GW.toast(m.text);
-  });
   Q.on('shell', (m) => { if (m.type === 'copied') GW.toast('Скопировано'); else if (m.type === 'copyFailed') GW.toast('Не получилось скопировать — буфер обмена занят'); });
-  const cmdsLater = () => queueMicrotask(renderCmds);
-  Q.on('shell', (m) => m.type === 'state' && cmdsLater());
-  Q.on('color', (m) => m.type === 'state' && cmdsLater());
-  Q.on('sound', (m) => m.type === 'state' && cmdsLater());
 
   // ---------- сообщения ----------
   Q.on('shell', (m) => {
+    if (m.type === 'show') { show(({ color: 'cprofile', sound: 'sapp' })[m.page] || m.page); return; }
     if (m.type === 'win') {
       document.documentElement.classList.toggle('qr-max', !!m.max);
       document.documentElement.classList.toggle('qr-inactive', !m.active);
@@ -291,13 +235,14 @@
       $('g-trayV').textContent = TRAY[m.trayClick] || TRAY.open;
       $('g-nvNote').hidden = m.nvapi;
       syncModules(m);
-      if (first) show(({ home: 'home', color: 'cprofile', sound: 'sapp', shot: 'shot', rec: 'rec', general: 'general' })[m.page] || ($('view-' + m.page) ? m.page : 'home'));
+      if (first) show(({ home: 'home', color: 'cprofile', sound: 'sapp', shot: 'shot', rec: 'rec', net: 'net', general: 'general' })[m.page] || ($('view-' + m.page) ? m.page : 'home'));
       else renderNav();
     }
   });
   // состояния инструментов запоминаем до того, как их отрисуют color.js / sound.js; меню — после
   Q.on('color', (m) => { if (m.type === 'state') { Q.state.color = m.state; queueMicrotask(renderNav); } });
   Q.on('rec', (m) => { if (m.type === 'state') { (Q.state.shell || {}).recording = m.state.recording; queueMicrotask(renderNav); } });
+  Q.on('net', (m) => { if (m.type === 'state') queueMicrotask(renderNav); });
   Q.on('sound', (m) => { if (m.type === 'state') Q.state.sound = m.state; if (m.type === 'state' || m.type === 'live' || m.type === 'local') queueMicrotask(renderNav); });
 
   if (host) {

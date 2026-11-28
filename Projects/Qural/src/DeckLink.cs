@@ -42,6 +42,10 @@ namespace Qural
         // «Скриншот» / «Запись экрана»: пока идёт запись — время на кнопке (проверяем 4 раза в секунду, шлём раз в секунду)
         readonly System.Windows.Forms.Timer capPoll = new System.Windows.Forms.Timer { Interval = 250 };
         static bool IsCapture(string kind) { return kind == "shot-key" || kind == "rec-key"; }
+        bool netWatching;   // на деке видна кнопка «Сеть» — NetMerge опрашивает раз в секунду
+
+        /// NetMerge обновил данные — перерисовать кнопки «Сеть» (только их). Вызывать на потоке интерфейса.
+        public void NetChanged() { if (netWatching) Push(false, false, true); }
         volatile bool stopping;
         IntPtr fgHook = IntPtr.Zero;
         WinEventProc fgProc; // держим ссылку, чтобы делегат не собрал сборщик мусора
@@ -188,17 +192,19 @@ namespace Qural
         void UpdateWatching()
         {
             if (stopping) return;
-            bool any = false, active = false, music = false, load = false, cap = false;
+            bool any = false, active = false, music = false, load = false, cap = false, net = false;
             foreach (var c in Clients)
                 foreach (var t in c.Tiles.Values)
                 {
                     if (t.Kind.StartsWith("media")) { music = true; continue; }   // «Сейчас играет» обновляет Media сам
                     if (t.Kind.StartsWith("stats")) { load = true; continue; }    // «Нагрузка ПК» — Stats сам
                     if (IsCapture(t.Kind)) { cap = true; continue; }             // скриншот / запись — по событиям
+                    if (t.Kind == "net-key") { net = true; continue; }            // «Сеть» — NetMerge сам, раз в секунду
                     any = true; if (t.App == "active" && !t.Kind.StartsWith("color")) active = true;
                 }
             if (any) { if (!poll.Enabled) poll.Start(); } else poll.Stop();
             if (cap) { if (!capPoll.Enabled) capPoll.Start(); } else capPoll.Stop();
+            if (net != netWatching) { netWatching = net; if (net) app.Net.Watch(); else app.Net.Unwatch(); }
             media.Watching = music;
             stats.Watching = load;
             if (active && fgHook == IntPtr.Zero)
@@ -234,7 +240,7 @@ namespace Qural
                     if (d == null) continue;
                     string id = Str(d, "id"), kind = Str(d, "kind");
                     if (kind != "dial" && kind != "color-key" && kind != "color-dial" && kind != "media-key" && kind != "media-dial" &&
-                        kind != "stats-key" && kind != "stats-dial" && kind != "shot-key" && kind != "rec-key") kind = "key";
+                        kind != "stats-key" && kind != "stats-dial" && kind != "shot-key" && kind != "rec-key" && kind != "net-key") kind = "key";
                     // у кнопок цвета в app — профиль: next или название
                     // у «Скриншота» в app — что делает долгое нажатие (off — запись на этой кнопке не показывать)
                     string a = kind.StartsWith("color") ? (Str(d, "app").Trim().Length > 0 ? Str(d, "app").Trim() : "next")
@@ -282,6 +288,16 @@ namespace Qural
                 RecLog.Write("дека: запись " + Str(m, "value") + " " + Str(m, "mode"));
                 string err = app.RecCommand(Str(m, "value"), Str(m, "mode"));
                 if (err != null) c.Send(json.Serialize(new { type = "error", id = Str(m, "id"), text = err }));
+            }
+            else if (cmd == "net")
+            {
+                // «Сеть» с деки: {"cmd":"net","id":"…","value":"toggle"} — включить / пауза; не запущен — запустить
+                string id = Str(m, "id");
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    string err = app.Net.Toggle();
+                    if (err != null) try { ui.Post(__ => c.Send(json.Serialize(new { type = "error", id = id, text = err })), null); } catch (Exception) { }
+                });
             }
             else if (cmd == "shot")
             {
@@ -419,7 +435,7 @@ namespace Qural
         public void CaptureChanged() { try { ui.Post(_ => Push(false, true), null); } catch (Exception) { } }
 
         // Вызывать на потоке интерфейса. force — перерисовать все кнопки; captureOnly — только «Скриншот» и «Запись экрана».
-        public void Push(bool force, bool captureOnly = false)
+        public void Push(bool force, bool captureOnly = false, bool netOnly = false)
         {
             if (stopping) return;
             var list = Clients;
@@ -429,8 +445,8 @@ namespace Qural
 
             // микшер опрашиваем, только если на деке есть кнопки громкости
             bool needSnap = false;
-            if (!captureOnly)
-                foreach (var c in list) foreach (var t in c.Tiles.Values) if (!t.Kind.StartsWith("color") && !t.Kind.StartsWith("media") && !t.Kind.StartsWith("stats") && !IsCapture(t.Kind)) { needSnap = true; break; }
+            if (!captureOnly && !netOnly)
+                foreach (var c in list) foreach (var t in c.Tiles.Values) if (!t.Kind.StartsWith("color") && !t.Kind.StartsWith("media") && !t.Kind.StartsWith("stats") && !IsCapture(t.Kind) && t.Kind != "net-key") { needSnap = true; break; }
             List<Audio.Info> snap = null;
             if (needSnap) try { snap = Audio.Snapshot(); } catch (Exception) { return; }
             var cache = new Dictionary<string, DeckTiles.State>(StringComparer.OrdinalIgnoreCase);
@@ -440,6 +456,14 @@ namespace Qural
                 var changed = new List<object>();
                 foreach (var t in c.Tiles.Values)
                 {
+                    if (t.Kind == "net-key")
+                    {
+                        if (captureOnly) continue;
+                        object tile = NetTile(t, force);
+                        if (tile != null) changed.Add(tile);
+                        continue;
+                    }
+                    if (netOnly) continue;
                     if (IsCapture(t.Kind))
                     {
                         object tile = CaptureTile(t, force);
@@ -505,6 +529,19 @@ namespace Qural
             catch (Exception) { return null; }
             t.Last = state;
             return new { id = t.Id, png = png, gif = gif, title = "", value = "", volume = 0, muted = false, running = true };
+        }
+
+        // «Сеть»: net-merge — скорость и состояние; картинку шлём, только когда видимое поменялось
+        object NetTile(Tile t, bool force)
+        {
+            var s = app.Net.Current;
+            string key = NetTiles.Key(s);
+            if (!force && key == t.Last) return null;
+            string png;
+            try { using (var b = NetTiles.Render(s)) png = DeckTiles.ToBase64(b); }
+            catch (Exception) { return null; }
+            t.Last = key;
+            return new { id = t.Id, png = png, title = "", value = "", volume = 0, muted = s.State != "on", running = s.State == "on" };
         }
 
         // кнопка профиля цвета: next — показывает текущий профиль, название — светится, когда этот профиль включён

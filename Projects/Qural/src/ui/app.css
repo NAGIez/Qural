@@ -224,3 +224,92 @@ html.qr-max .qr-edge { display:none; }
 .qr-wfoot .gw-btn { min-width:160px; }
 @media (max-width:700px) { .qr-wgrid { grid-template-columns:1fr; } }
 .qr-first .qr-shell { grid-template-columns:minmax(0, 1fr); }
+
+/* ── «Сеть» (net-merge): карточки подключений с графиками, как в RoutEngine ── */
+#view-net .qr-head { flex-wrap:wrap; }
+.qr-nethead { margin-left:auto; display:flex; align-items:center; gap:12px; min-width:0; }
+.qr-nethead canvas { width:220px; height:44px; display:block; }
+.qr-netrate { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.qr-netrate b { color:var(--blue); font-size:16px; }
+.qr-netrate span { color:var(--orange); font-size:13px; font-weight:600; }
+.qr-netgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+.qr-netcard { padding:16px 18px; display:flex; flex-direction:column; gap:8px; transition:opacity .2s var(--ease); }
+.qr-netcard.off { opacity:.62; }
+.qr-nc-top { display:flex; align-items:center; gap:10px; min-width:0; }
+.qr-nc-ic { width:34px; height:34px; flex:none; border-radius:10px; background:var(--tint); color:var(--blue); display:grid; place-items:center; }
+.qr-nc-ic svg { width:19px; height:19px; }
+.qr-nc-name { flex:1; min-width:0; display:flex; flex-direction:column; }
+.qr-nc-name b, .qr-nc-name small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-nc-name small { color:var(--label2); font-size:12px; }
+.qr-nc-rates { display:flex; gap:22px; font-variant-numeric:tabular-nums; }
+.qr-nc-rates .qr-down { color:var(--blue); font-size:18px; font-weight:700; }
+.qr-nc-rates .qr-up { color:var(--orange); font-size:18px; font-weight:700; }
+.qr-nc-rates small { font-size:12px; font-weight:500; opacity:.8; }
+.qr-nc-graph { width:100%; height:72px; display:block; }
+.qr-nc-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px; color:var(--label2); font-variant-numeric:tabular-nums; flex-wrap:wrap; }
+.qr-nc-acts .gw-pill.on { background:var(--tint); color:var(--blue); }
+@media (max-width:640px) { .qr-nethead canvas { display:none; } }
+.gw-chip.blue { background:var(--tint); color:var(--blue); }
+
+/* «Сеть» → «Программы» */
+.qr-netapps { padding:16px 18px; }
+
+/* «Сеть» → «Скорость»: циферблат со стрелкой и итоги по подключениям */
+.qr-speed { padding:16px 18px; }
+.qr-sp-body { display:grid; grid-template-columns:minmax(200px, 270px) 1fr; gap:22px; align-items:center; }
+.qr-sp-gauge { position:relative; }
+.qr-sp-gauge svg { display:block; width:100%; height:auto; }
+.qr-sp-track { fill:none; stroke:var(--fill2); stroke-width:14; stroke-linecap:round; }
+.qr-sp-val { fill:none; stroke:var(--blue); stroke-width:14; stroke-linecap:round; transition:stroke-dasharray .25s linear, stroke .3s var(--ease); }
+.qr-sp-gauge.up .qr-sp-val { stroke:var(--orange); }
+.qr-sp-ticks text { font:600 10px/1 var(--font, system-ui); fill:var(--label2); text-anchor:middle; dominant-baseline:middle; }
+.qr-sp-ticks line { stroke:var(--sep); stroke-width:1.5; stroke-linecap:round; }
+.qr-sp-needle { transform-origin:120px 120px; transform:rotate(-135deg); transition:transform .25s linear; }
+.qr-sp-needle path { fill:var(--label); }
+.qr-sp-needle circle { fill:var(--pop); stroke:var(--label); stroke-width:3; }
+.qr-sp-read { position:absolute; left:0; right:0; top:64%; display:flex; flex-direction:column; align-items:center; gap:2px; pointer-events:none; }
+.qr-sp-read b { font-size:34px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+.qr-sp-read small { color:var(--label2); font-size:12px; }
+.qr-sp-read span { color:var(--label2); font-size:12px; margin-top:4px; text-align:center; }
+.qr-sp-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.qr-sp-rows { display:flex; flex-direction:column; }
+.qr-sp-row { display:grid; grid-template-columns:minmax(0,1fr) 52px 88px 88px; gap:8px; align-items:center; padding:9px 4px; border-bottom:.5px solid var(--sep); font-variant-numeric:tabular-nums; }
+.qr-sp-row:last-child { border-bottom:0; }
+.qr-sp-row.head { color:var(--label2); font-size:12px; padding-top:0; }
+.qr-sp-row.run { background:var(--tint); border-radius:10px; }
+.qr-sp-row.total { font-weight:600; }
+.qr-sp-name { display:flex; align-items:center; gap:10px; min-width:0; }
+.qr-sp-nm { display:flex; flex-direction:column; min-width:0; }
+.qr-sp-name b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-sp-nm small { color:var(--label2); font-size:11.5px; font-weight:400; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qr-sp-ic { width:28px; height:28px; flex:none; border-radius:8px; background:var(--tint); color:var(--blue); display:grid; place-items:center; }
+.qr-sp-ic svg { width:16px; height:16px; }
+.qr-sp-row .qr-down { color:var(--blue); font-weight:600; }
+.qr-sp-row .qr-up { color:var(--orange); font-weight:600; }
+.qr-sp-row .dim { color:var(--label2); font-weight:400; }
+.qr-sp-note { margin:0; font-size:12px; }
+@media (max-width:760px) { .qr-sp-body { grid-template-columns:1fr; } .qr-sp-gauge { max-width:300px; margin:0 auto; width:100%; } .qr-sp-row { grid-template-columns:minmax(0,1fr) 52px 76px 76px; } }
+.qr-na-head { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
+.qr-na-cols, .qr-na-row { display:grid; grid-template-columns:minmax(180px, 2.2fr) minmax(90px, 1.2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr); gap:14px; align-items:center; }
+.qr-na-cols { font-size:11px; color:var(--label2); text-transform:none; padding:0 0 6px; border-bottom:.5px solid var(--sep); }
+.qr-na-row { padding:9px 0; border-bottom:.5px solid var(--sep); }
+.qr-na-row:last-child { border-bottom:none; }
+.qr-na-app { display:flex; align-items:center; gap:10px; min-width:0; }
+.qr-na-ic { width:30px; height:30px; flex:none; display:grid; place-items:center; }
+.qr-na-ic img { width:28px; height:28px; }
+.qr-na-ic .qr-icon { width:28px; height:28px; border-radius:8px; font-size:13px; }
+.qr-na-name { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.qr-na-name b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.qr-na-name .gw-chip { align-self:flex-start; font-size:11px; }
+.qr-na-spark { width:100%; height:30px; display:block; }
+.qr-na-rate { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; }
+.qr-na-bar { display:block; height:4px; border-radius:2px; background:var(--fill); overflow:hidden; }
+.qr-na-bar > i { display:block; height:100%; background:var(--blue); border-radius:2px; transition:width .4s var(--ease); }
+.qr-na-bar.up > i { background:var(--orange); }
+.qr-na-used { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; font-size:12px; }
+.qr-na-used small { color:var(--label2); }
+.qr-na-more { margin-top:8px; }
+@media (max-width:760px) { .qr-na-cols { display:none; } .qr-na-row { grid-template-columns:1fr 1fr; } .qr-na-spark { display:none; } }
+.qr-na-split { display:flex; flex-wrap:wrap; gap:4px 10px; font-size:11px; color:var(--label2); font-weight:600; }
+.qr-na-split span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+.qr-na-split i { width:7px; height:7px; border-radius:50%; display:inline-block; }

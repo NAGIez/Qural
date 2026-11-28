@@ -22,6 +22,15 @@ Copy-Item "$root\deck-icons" "$out\deck-icons" -Recurse
 
 # FFmpeg для записи экрана (сборка gyan.dev, GPL) и модель шумоподавления RNNoise — копируем, только если поменялись
 if (-not (Test-Path "$root\ffmpeg\ffmpeg.exe")) { & "$root\tools\get-ffmpeg.ps1" }
+# net-merge — «Сеть»: Qural запускает его сам (tools\get-netmerge.ps1 скачивает и сверяет SHA-256)
+& "$root\tools\get-netmerge.ps1"
+New-Item -ItemType Directory -Force "$out\net-merge" | Out-Null
+foreach ($f in Get-ChildItem "$root\netmerge" -File) {
+    $dst = Join-Path "$out\net-merge" $f.Name
+    if (-not (Test-Path $dst) -or (Get-Item $dst).Length -ne $f.Length -or (Get-Item $dst).LastWriteTimeUtc -ne $f.LastWriteTimeUtc) {
+        try { Copy-Item $f.FullName $dst -Force } catch { Write-Warning "net-merge: $($f.Name) занят (net-merge работает) — оставляю прежний" }
+    }
+}
 New-Item -ItemType Directory -Force "$out\ffmpeg" | Out-Null
 foreach ($f in Get-ChildItem "$root\ffmpeg" -File) {
     $dst = Join-Path "$out\ffmpeg" $f.Name
@@ -31,7 +40,7 @@ $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 & $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 `
     /out:"$out\Qural.exe" /win32icon:"$ico" /resource:"$ico",Qural.app.ico /win32manifest:"$root\src\app.manifest" `
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Runtime.Serialization.dll /r:System.Xml.dll `
-    /r:System.Web.Extensions.dll /r:System.Management.dll /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.dll" /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.InteropServices.WindowsRuntime.dll" `
+    /r:System.Web.Extensions.dll /r:System.Management.dll /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.dll" /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.FileSystem.dll" /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.dll" /r:"$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.InteropServices.WindowsRuntime.dll" `
     /r:"$env:WINDIR\System32\WinMetadata\Windows.Foundation.winmd" /r:"$env:WINDIR\System32\WinMetadata\Windows.Media.winmd" /r:"$env:WINDIR\System32\WinMetadata\Windows.Storage.winmd" /r:"$root\lib\Microsoft.Web.WebView2.Core.dll" /r:"$root\lib\Microsoft.Web.WebView2.WinForms.dll" `
     "$root\src\*.cs"
 if ($LASTEXITCODE -ne 0) { throw "Ошибка сборки" }

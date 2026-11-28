@@ -363,6 +363,84 @@
   </section>
 
   <!-- ═════════════ ОБЩИЕ ═════════════ -->
+  <section class="qr-view" id="view-net" hidden>
+    <div class="qr-head">
+      <span class="qr-bigicon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="2.8" cy="4" r="1.2"/><circle cx="2.8" cy="12" r="1.2"/><path d="M4 4c3 0 3.5 4 6 4M4 12c3 0 3.5-4 6-4M10 8h3.5M11.8 6.2L13.6 8l-1.8 1.8"/></svg></span>
+      <div class="qr-title"><h1 class="gw-h1">Сеть</h1><p class="gw-sub" id="n-sub">Все подключения сразу</p></div>
+      <div class="qr-nethead" id="n-head"><canvas id="n-total" width="220" height="44"></canvas><div class="qr-netrate"><b id="n-down">↓ 0</b><span id="n-up">↑ 0</span></div></div>
+      <button class="gw-btn main" id="n-toggle">Пауза</button>
+    </div>
+
+    <div class="gw-card qr-gap">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Включить «Сеть»<small>Выключено — интернет идёт как обычно, через одно подключение</small></span><span class="gw-switch"><input type="checkbox" data-module="net"></span></label>
+      </div>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="n-missing" hidden>
+      <p><b>Нет файлов сетевого модуля в папке Qural.</b> Переустановите Qural — установщик положит их на место.</p>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="n-setup" hidden>
+      <p><b>Один раз нужно разрешение Windows.</b> Чтобы сложить подключения, Qural создаёт виртуальный сетевой адаптер — для этого нужны права администратора. Нажмите «Включить»: Windows один раз спросит разрешение (окно UAC), дальше «Сеть» включается и выключается сама, без вопросов.</p>
+      <div class="gw-row"><button class="gw-btn main" id="n-setupBtn">Включить объединение</button></div>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="n-wait" hidden>
+      <p><b>Ждёт второе подключение.</b> Сейчас подключений с интернетом меньше двух — складывать нечего, интернет идёт как обычно. Подключите кабель, Wi-Fi или телефон (USB-модем, точка доступа) — «Сеть» включится сама.</p>
+    </div>
+    <div class="gw-card qr-info qr-gap" id="n-update" hidden>
+      <p><span class="gw-chip blue">Обновление</span> Доступна новая версия сетевого модуля — <span id="n-updateV"></span>.</p>
+      <div class="gw-row"><button class="gw-btn main" id="n-updateBtn">Обновить</button></div>
+    </div>
+
+    <div class="qr-netgrid qr-gap" id="n-adapters"></div>
+
+    <div class="gw-card qr-speed qr-gap" id="n-speedCard">
+      <div class="qr-na-head"><b>Скорость</b><span class="gw-sub" id="n-spSub">Замер каждого подключения и всех вместе</span></div>
+      <div class="qr-sp-body">
+        <div class="qr-sp-gauge">
+          <svg viewBox="0 0 240 210" id="n-gauge" aria-hidden="true">
+            <path class="qr-sp-track" d="" />
+            <path class="qr-sp-val" id="n-spArc" d="" pathLength="100" stroke-dasharray="0 100" />
+            <g class="qr-sp-ticks" id="n-spTicks"></g>
+            <g class="qr-sp-needle" id="n-spNeedle"><path d="M120 120 L117.2 112 L120 40 L122.8 112 Z" /><circle cx="120" cy="120" r="7" /></g>
+          </svg>
+          <div class="qr-sp-read"><b id="n-spVal">—</b><small>Мбит/с</small><span id="n-spPhase">&nbsp;</span></div>
+        </div>
+        <div class="qr-sp-side">
+          <div class="qr-sp-rows" id="n-spRows"></div>
+          <div class="gw-row"><button class="gw-btn main" id="n-spBtn">Проверить скорость</button></div>
+          <p class="gw-sub qr-sp-note">Как в Speedtest: для каждого подключения — ближайший сервер Speedtest с наименьшим пингом, несколько потоков, 10 секунд приёма и 8 секунд отдачи; в итог не идут 30% самых медленных и 10% самых быстрых отсчётов. Потом — все подключения вместе. Тратит трафик: с телефона обычно 30–100 МБ.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="gw-card qr-netapps qr-gap" id="n-appsCard">
+      <div class="qr-na-head"><b>Программы</b><span class="gw-sub" id="n-appsSub"></span></div>
+      <div class="qr-na-cols"><span>Программа</span><span>Последняя минута</span><span>Приём</span><span>Отдача</span><span>Сегодня · месяц</span></div>
+      <div id="n-apps"></div>
+      <button class="gw-link qr-na-more" id="n-appsMore" hidden>Показать все</button>
+    </div>
+
+    <div class="gw-sec">Настройки</div>
+    <div class="gw-card">
+      <div class="gw-grp">
+        <label class="gw-opt"><span>Автопауза<small>Когда подключений с интернетом меньше двух — пауза, когда снова два — включается сама</small></span><span class="gw-switch"><input type="checkbox" data-nset="autoPause"></span></label>
+        <label class="gw-opt"><span>Игровой режим<small>Пока по подключению идёт игра или звонок, новые загрузки уходят на другие</small></span><span class="gw-switch"><input type="checkbox" data-nset="game"></span></label>
+        <label class="gw-opt"><span>Беречь телефон<small>После 3 минут большой загрузки держит раздачу с телефона на 20 Мбит/с, пока он не отдохнёт</small></span><span class="gw-switch"><input type="checkbox" data-nset="cool"></span></label>
+        <label class="gw-opt"><span>Использовать все подключения<small>Программы идут по IPv4, чтобы работали все подключения. Выключите, только если нужен сайт лишь с IPv6</small></span><span class="gw-switch"><input type="checkbox" data-nset="useAll"></span></label>
+        <label class="gw-opt"><span>Считать трафик программ<small>Сколько качает каждая программа и через какое подключение. Системные сетевые события Windows — почти без нагрузки</small></span><span class="gw-switch"><input type="checkbox" data-nset="apps"></span></label>
+        <label class="gw-opt"><span>Показывать провайдера<small>Узнаёт у ipwho.is название провайдера через каждое подключение — сервис видит его публичный IP</small></span><span class="gw-switch"><input type="checkbox" data-nset="isp"></span></label>
+        <label class="gw-opt"><span>Проверять обновления сетевого модуля<small>Раз в 6 часов, на GitHub</small></span><span class="gw-switch"><input type="checkbox" data-nset="updates"></span></label>
+      </div>
+    </div>
+    <div class="gw-sec">Как это работает</div>
+    <div class="gw-card qr-info">
+      <p>Каждое новое соединение программы получает одно из подключений — быстрые получают больше, без интернета — ничего. Быстрее становится всё, что открывает много соединений: загрузки Steam и игр, браузер, обновления, облака, торренты. Одна загрузка в одно соединение быстрее не станет — для браузера включите «Parallel downloading» в chrome://flags.</p>
+      <p>Скорость и трафик подключений за день и месяц Qural считает сам по счётчикам Windows — и при паузе тоже. Трафик программ — по системным сетевым событиям Windows, без опроса. Если сетевой модуль остановится, интернет продолжит работать.</p>
+      <p class="gw-sub" id="n-version"></p>
+    </div>
+  </section>
+
+  <!-- ═════════════ ОБЩИЕ ═════════════ -->
   <section class="qr-view" id="view-general" hidden>
     <h1 class="gw-h1">Общие</h1>
     <p class="gw-sub">Qural работает тихо в трее. Окно можно закрыть — горячие клавиши продолжат работать.</p>
@@ -387,17 +465,9 @@
         <label class="gw-opt"><span>Звук<small>Громкость программ по клавишам</small></span><span class="gw-switch"><input type="checkbox" data-module="sound"></span></label>
         <label class="gw-opt"><span>Скриншоты<small>Область, окно, экран, рисование поверх</small></span><span class="gw-switch"><input type="checkbox" data-module="shot"></span></label>
         <label class="gw-opt"><span>Запись экрана<small>Область, окно или экран со звуком и редактором</small></span><span class="gw-switch"><input type="checkbox" data-module="rec"></span></label>
+        <label class="gw-opt"><span>Сеть<small>Все подключения сразу — кабель, Wi-Fi и телефон в одно</small></span><span class="gw-switch"><input type="checkbox" data-module="net"></span></label>
       </div>
     </div>
-    <div class="gw-sec">Кнопки Ulanzi Deck и Stream Deck</div>
-    <div class="gw-card qr-info">
-      <p>Любую команду ниже можно повесить на кнопку деки, ярлык или задание планировщика — без горячих клавиш. В программе деки выберите действие запуска программы, путь — Qural.exe, параметры — из списка. Если Qural уже работает, команда выполнится сразу, а второй запуск тихо закроется.</p>
-      <div class="qr-cmdpath"><code id="g-exe"></code><button class="gw-pill" id="g-exeCopy">Копировать путь</button></div>
-      <p class="qr-gap2"><b>Проще всего — ярлыки.</b> Qural создаст по ярлыку на каждую команду ниже. В Ulanzi Studio перетащите на кнопку действие <b>Система → Open</b> и выберите нужный ярлык — параметры в нём уже есть.</p>
-      <div class="gw-row"><button class="gw-btn main" id="g-makeLinks">Создать ярлыки для деки</button><span class="gw-sub" id="g-linksDone"></span></div>
-    </div>
-    <ul class="gw-list qr-cmds qr-gap2" id="g-cmds"></ul>
-    <p class="gw-sub qr-note">«Копировать» берёт только параметры. Если деке нужна команда целиком, вставьте путь, пробел и параметры. Громкость: <code>up</code> / <code>down</code> — на шаг программы, <code>+10</code> / <code>-10</code> — на 10%, <code>50</code> — ровно 50%, <code>mute</code> — без звука / вернуть; вместо имени программы можно написать <code>active</code> — программа в фокусе.</p>
 
     <div class="gw-sec">Как это работает</div>
     <div class="gw-card qr-info">
@@ -413,6 +483,15 @@
 </div>
 
 <!-- окна снизу -->
+<div class="gw-sheet" id="n-aliasSheet" hidden>
+  <form class="gw-sh" id="n-aliasForm">
+    <div class="gw-sh-head"><b>Название подключения</b><button type="button" class="gw-ib" data-close title="Закрыть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <label class="gw-label" for="n-aliasInput">Как показывать <span id="n-aliasOf"></span></label>
+    <input class="gw-field" id="n-aliasInput" maxlength="40" autocomplete="off" placeholder="Например, «Домашний интернет»">
+    <div class="gw-sh-acts"><button type="button" class="gw-pill" data-close>Отмена</button><button type="button" class="gw-pill" id="n-aliasReset">Как в Windows</button><button type="submit" class="gw-pill main">Сохранить</button></div>
+  </form>
+</div>
+
 <div class="gw-sheet" id="c-nameSheet" hidden>
   <form class="gw-sh" id="c-nameForm">
     <div class="gw-sh-head"><b id="c-nameTitle">Новый профиль</b><button type="button" class="gw-ib" data-close title="Закрыть"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
@@ -439,6 +518,7 @@
 <script src="sound.js"></script>
 <script src="shot.js"></script>
 <script src="rec.js"></script>
+<script src="net.js"></script>
 <script src="home.js"></script>
 <script src="welcome.js"></script>
 </body>

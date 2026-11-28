@@ -29,7 +29,7 @@ namespace Qural
 
         const int Marker = 0x51524C31; // «QRL1» — отличаем свои сообщения от чужих
 
-        static readonly string[] Known = { "--profile", "--reset-colors", "--volume", "--color", "--sound", "--open", "--shot", "--rec" };
+        static readonly string[] Known = { "--profile", "--reset-colors", "--volume", "--color", "--sound", "--open", "--shot", "--rec", "--net", "--module" };
 
         public static bool IsCommand(string[] args)
         {
@@ -99,7 +99,37 @@ namespace Qural
                 {
                     case "--tray": break;
 
-                    case "--open": app.OpenWindow(); break;
+                    case "--open":
+                        // --open [home|color|sound|shot|rec|net|general] — открыть окно на этой вкладке
+                        if (next != null && !next.StartsWith("--")) { app.OpenPage(next.ToLowerInvariant()); i++; }
+                        else app.OpenWindow();
+                        break;
+
+                    case "--module":
+                        {
+                            // --module color|sound|shot|rec|net on|off — включить / выключить инструмент
+                            string third = i + 2 < args.Length ? args[i + 2] : null;
+                            if (next == null || third == null) { errors.Add("--module: нужно имя и on или off"); break; }
+                            app.SetModule(next.ToLowerInvariant(), third.ToLowerInvariant() == "on");
+                            i += 2;
+                            break;
+                        }
+
+                    case "--net":
+                        {
+                            // --net [toggle|on|off] — «Сеть»: объединение подключений вкл / пауза
+                            string action = "toggle";
+                            if (next != null && !next.StartsWith("--")) { action = next.ToLowerInvariant(); i++; }
+                            var net = app.Net;
+                            string err = null;
+                            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                            {
+                                string e2 = action == "on" ? net.Resume() : action == "off" ? net.Pause() : net.Toggle();
+                                if (e2 != null) RecLog.Write("--net: " + e2);
+                            });
+                            if (err != null) errors.Add(err);
+                            break;
+                        }
 
                     case "--rec":
                         {

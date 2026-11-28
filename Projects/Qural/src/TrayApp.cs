@@ -18,6 +18,8 @@ namespace Qural
         [STAThread]
         static void Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--net-run") { NetMerge.RunFromTask(); return; }
+            if (args.Length > 0 && args[0] == "--net-mon") { NetMon.Run(); return; }          // «Сеть» → «Программы»: помощник с правами администратора   // «Сеть»: задача с правами администратора запускает net-merge
             if (Array.Exists(args, a => a == "--uninstall")) { Uninstaller.Run(); return; } // «Удалить» в «Приложениях» Windows
             bool isCommand = Commands.IsCommand(args); // запуск с командой (кнопка Ulanzi Deck, ярлык)
             // Быстрый путь для кнопок деки: Qural уже работает — сразу передаём команду, без мьютекса и его настройки
@@ -280,9 +282,13 @@ namespace Qural
             Sound.SaveQuiet();
             General = GeneralConfig.Load();
             Shot = ShotConfig.Load();
+            // клавиши скриншота при запуске — в журнал (жалоба: после перезагрузки стояла PrtSc вместо своей)
+            RecLog.Write("запуск: скриншот — область " + HotkeyText.Format(Shot.Hotkey) + ", экран " + HotkeyText.Format(Shot.FullHotkey) +
+                         ", окно " + HotkeyText.Format(Shot.WindowHotkey) + (Store.LoadNotes.Count > 0 ? "; " + string.Join("; ", Store.LoadNotes.ToArray()) : ""));
             Rec = RecConfig.Load();
             ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
             recorder = new Recorder(this);
+            Net = new NetMerge(this);
             recorder.Changed += () => { BuildMenu(); if (window != null && !window.IsDisposed) window.RecChanged(); DeckCapture(); };
 
             tray.Icon = AppIcon.Get(SystemInformation.SmallIconSize);
@@ -332,6 +338,12 @@ namespace Qural
             Updater.Changed += () => Invoke(() => { BuildMenu(); if (window != null && !window.IsDisposed) window.UpdateChanged(); });
             updateTimer.Tick += (s, e) => { updateTimer.Interval = 12 * 3600 * 1000; AutoCheckUpdate(); };
             updateTimer.Start();
+
+            Net.Changed += () => Invoke(() =>
+            {
+                if (window != null && !window.IsDisposed) window.NetChanged();
+                if (deck != null) deck.NetChanged();
+            });
         }
 
         // ── обновления ──
@@ -365,6 +377,8 @@ namespace Qural
         }
 
         DeckLink deck;
+        // «Сеть»: net-merge (объединение подключений) — состояние для окна, меню трея и деки
+        public NetMerge Net;
         // громкость поменялась (клавишей, командой, в окне) — обновить кнопки деки, если они есть
         public void DeckChanged() { if (deck != null) deck.Push(false); }
 
@@ -726,6 +740,7 @@ namespace Qural
             else if (name == "sound") { General.SoundOff = !on; DeckChanged(); }
             else if (name == "shot") General.ShotOff = !on;
             else if (name == "rec") { General.RecOff = !on; if (!on && recorder.Recording) recorder.Stop(); }
+            else if (name == "net") { General.NetOff = !on; Net.ModuleChanged(on); DeckChanged(); }
             else return;
             General.Save();
             RegisterHotkeys();
@@ -833,83 +848,85 @@ namespace Qural
             tray.Text = t.Length > 63 ? t.Substring(0, 63) : t;
         }
 
+        // Меню трея (оформление — TrayMenuStyle): действия, «Сеть», профили цвета, инструменты переключателями, выход
         void BuildMenu()
         {
             var menu = tray.ContextMenuStrip;
+            var st = new TrayMenuStyle(TrayMenuStyle.IsDark(General.TrayTheme));
             menu.Items.Clear();
-            var open = new ToolStripMenuItem("Открыть Qural", null, (s, e) => OpenWindow());
-            open.Font = new Font(open.Font, FontStyle.Bold);
+            var open = new ToolStripMenuItem("Открыть Qural", st.Icon("open"), (s, e) => OpenWindow());
             menu.Items.Add(open);
             menu.Items.Add(new ToolStripSeparator());
+
+            // действия: дать меню закрыться, иначе оно попадёт на снимок / в запись
+            Action<Action> later = act =>
+            {
+                var t = new System.Windows.Forms.Timer { Interval = 250 };
+                t.Tick += (s2, e2) => { t.Stop(); t.Dispose(); act(); };
+                t.Start();
+            };
+            bool any = false;
+            if (!General.ShotOff)
+            {
+                var shotItem = new ToolStripMenuItem("Сделать скриншот", st.Icon("shot"), (s, e) => later(() => ShotCommand("region")));
+                if (Shot.Hotkey != 0) shotItem.ShortcutKeyDisplayString = HotkeyText.Format(Shot.Hotkey);
+                menu.Items.Add(shotItem);
+                any = true;
+            }
             if (!General.RecOff)
             {
                 if (recorder.Recording)
                 {
-                    menu.Items.Add(new ToolStripMenuItem("Остановить запись", null, (s, e) => recorder.Stop()) { ShortcutKeyDisplayString = HotkeyText.Format(Rec.Hotkey) });
+                    menu.Items.Add(new ToolStripMenuItem("Остановить запись", st.Icon("rec"), (s, e) => recorder.Stop()) { ShortcutKeyDisplayString = HotkeyText.Format(Rec.Hotkey), Tag = "accent" });
                     menu.Items.Add(new ToolStripMenuItem(recorder.Paused ? "Продолжить запись" : "Пауза", null, (s, e) => recorder.TogglePause()) { ShortcutKeyDisplayString = HotkeyText.Format(Rec.PauseHotkey) });
                 }
                 else
                 {
-                    Action<string> later = mode =>
-                    {
-                        var t = new System.Windows.Forms.Timer { Interval = 250 }; // меню успевает закрыться
-                        t.Tick += (s2, e2) => { t.Stop(); t.Dispose(); string err = RecCommand("start", mode); if (err != null) RecNotify(err, null); };
-                        t.Start();
-                    };
-                    var recMenu = new ToolStripMenuItem("Запись экрана");
-                    recMenu.DropDownItems.Add(new ToolStripMenuItem("Выбрать область или окно…", null, (s, e) => later("region")) { ShortcutKeyDisplayString = HotkeyText.Format(Rec.Hotkey) });
-                    recMenu.DropDownItems.Add(new ToolStripMenuItem("Весь экран", null, (s, e) => later("screen")));
+                    Action<string> rec = mode => later(() => { string err = RecCommand("start", mode); if (err != null) RecNotify(err, null); });
+                    var recMenu = new ToolStripMenuItem("Запись экрана", st.Icon("rec"));
+                    recMenu.DropDownItems.Add(new ToolStripMenuItem("Выбрать область или окно…", null, (s, e) => rec("region")) { ShortcutKeyDisplayString = HotkeyText.Format(Rec.Hotkey) });
+                    recMenu.DropDownItems.Add(new ToolStripMenuItem("Весь экран", null, (s, e) => rec("screen")));
                     menu.Items.Add(recMenu);
                 }
+                any = true;
             }
-            if (!General.ShotOff)
+            if (NetMerge.Installed && !General.NetOff) { NetMenu(menu, st); any = true; }
+            if (any) menu.Items.Add(new ToolStripSeparator());
+
+            if (!General.ColorOff && Color.Profiles.Count > 0)
             {
-                // из меню трея: дать меню закрыться, иначе оно попадёт на снимок
-                var shotItem = new ToolStripMenuItem("Сделать скриншот", null, (s, e) =>
-                {
-                    var t = new System.Windows.Forms.Timer { Interval = 250 };
-                    t.Tick += (s2, e2) => { t.Stop(); t.Dispose(); ShotCommand("region"); };
-                    t.Start();
-                });
-                if (Shot.Hotkey != 0) shotItem.ShortcutKeyDisplayString = HotkeyText.Format(Shot.Hotkey);
-                menu.Items.Add(shotItem);
-                menu.Items.Add(new ToolStripSeparator());
-            }
-            if (!General.ColorOff)
-            {
-                menu.Items.Add(new ToolStripMenuItem("Профили цвета") { Enabled = false });
+                menu.Items.Add(TrayMenuStyle.Header("Профили цвета"));
                 for (int i = 0; i < Color.Profiles.Count; i++)
                 {
                     int idx = i;
-                    var it = new ToolStripMenuItem(Color.Profiles[i].Name, null, (s, e) => SwitchColor(idx));
-                    it.Checked = i == Color.Active;
+                    var it = new ToolStripMenuItem(Color.Profiles[i].Name, null, (s, e) => SwitchColor(idx)) { Checked = i == Color.Active };
                     if (Color.Profiles[i].Hotkey != 0) it.ShortcutKeyDisplayString = HotkeyText.Format(Color.Profiles[i].Hotkey);
                     menu.Items.Add(it);
                 }
-                menu.Items.Add(new ToolStripMenuItem("Сбросить мониторы к стандартным", null, (s, e) =>
+                menu.Items.Add(new ToolStripMenuItem("Сбросить мониторы", st.Icon("reset"), (s, e) =>
                 {
                     Applier.ResetAll();
                     if (Color.ShowOsd && !Fullscreen.Active()) osd.ShowText("По умолчанию");
                 }));
                 menu.Items.Add(new ToolStripSeparator());
             }
-            var colorItem = new ToolStripMenuItem("Цвет", null, (s, e) => SetModule("color", General.ColorOff)) { Checked = !General.ColorOff };
-            var soundItem = new ToolStripMenuItem("Звук", null, (s, e) => SetModule("sound", General.SoundOff)) { Checked = !General.SoundOff };
-            var shotOnItem = new ToolStripMenuItem("Скриншоты", null, (s, e) => SetModule("shot", General.ShotOff)) { Checked = !General.ShotOff };
-            var recOnItem = new ToolStripMenuItem("Запись экрана", null, (s, e) => SetModule("rec", General.RecOff)) { Checked = !General.RecOff };
-            menu.Items.Add(colorItem);
-            menu.Items.Add(soundItem);
-            menu.Items.Add(shotOnItem);
-            menu.Items.Add(recOnItem);
+
+            menu.Items.Add(TrayMenuStyle.Header("Инструменты"));
+            menu.Items.Add(TrayMenuStyle.Switch("Цвет", !General.ColorOff, (s, e) => SetModule("color", General.ColorOff)));
+            menu.Items.Add(TrayMenuStyle.Switch("Звук", !General.SoundOff, (s, e) => SetModule("sound", General.SoundOff)));
+            menu.Items.Add(TrayMenuStyle.Switch("Скриншоты", !General.ShotOff, (s, e) => SetModule("shot", General.ShotOff)));
+            menu.Items.Add(TrayMenuStyle.Switch("Запись экрана", !General.RecOff, (s, e) => SetModule("rec", General.RecOff)));
+            if (NetMerge.Installed) menu.Items.Add(TrayMenuStyle.Switch("Сеть", !General.NetOff, (s, e) => SetModule("net", General.NetOff)));
             menu.Items.Add(new ToolStripSeparator());
-            var autoItem = new ToolStripMenuItem("Запускать вместе с Windows", null, (s, e) => SetAutostart(!IsAutostart()));
-            autoItem.Checked = IsAutostart();
-            menu.Items.Add(autoItem);
+            menu.Items.Add(TrayMenuStyle.Switch("Запускать вместе с Windows", IsAutostart(), (s, e) => SetAutostart(!IsAutostart())));
             if (Updater.State == "available" && Updater.Latest != null)
-                menu.Items.Add(new ToolStripMenuItem("Обновить Qural до " + Updater.Latest.Version, null, (s, e) => InstallUpdate()));
+                menu.Items.Add(new ToolStripMenuItem("Обновить Qural до " + Updater.Latest.Version, st.Icon("update"), (s, e) => InstallUpdate()) { Tag = "accent" });
             else if (Updater.State == "downloading")
-                menu.Items.Add(new ToolStripMenuItem("Скачиваю обновление… " + Updater.Progress + "%") { Enabled = false });
-            menu.Items.Add(new ToolStripMenuItem("Выход", null, (s, e) => ExitThread()));
+                menu.Items.Add(new ToolStripMenuItem("Скачиваю обновление… " + Updater.Progress + "%", st.Icon("update")) { Enabled = false });
+            menu.Items.Add(new ToolStripMenuItem("Выход", st.Icon("power"), (s, e) => ExitThread()));
+
+            st.Apply(menu);
+            open.Font = new Font("Segoe UI Semibold", 9.75f);
         }
 
         [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
@@ -918,6 +935,50 @@ namespace Qural
         [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
         [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
         [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+
+        // «Сеть» в меню трея: состояние и скорость (↓ синим, ↑ оранжевым), вкл / пауза, подключения
+        void NetMenu(ContextMenuStrip menu, TrayMenuStyle st)
+        {
+            var s = Net.Current;
+            if ((DateTime.UtcNow - netMenuAt).TotalSeconds > 2) { netMenuAt = DateTime.UtcNow; Net.Refresh(); s = Net.Current; }
+            bool on = s.State == "on";
+            string head = on ? "Сеть" : s.State == "starting" ? "Сеть: запускается…" : s.State == "waiting" ? "Сеть: ждёт второе подключение"
+                        : s.State == "paused" ? "Сеть: пауза" : s.State == "setup" ? "Сеть: нужно включить" : "Сеть: выключена";
+            var root = on ? TrayMenuStyle.Speed(head, st.Icon("net"), "↓ " + NetText.Mbps(s.Down), "↑ " + NetText.Mbps(s.Up) + " Мбит/с")
+                          : new ToolStripMenuItem(head, st.Icon("net"));
+            if (on || s.State == "starting" || s.State == "waiting")
+                root.DropDownItems.Add(new ToolStripMenuItem("Пауза", null, (o, e) => ThreadPool.QueueUserWorkItem(_ => Net.Pause())));
+            else root.DropDownItems.Add(new ToolStripMenuItem("Включить объединение", null, (o, e) => ThreadPool.QueueUserWorkItem(_ =>
+            {
+                string err = Net.Resume();
+                if (err != null) Invoke(() => tray.ShowBalloonTip(5000, "Qural — сеть", err, ToolTipIcon.Warning));
+            })) { Tag = "accent" });
+            if (s.Adapters.Count > 0)
+            {
+                root.DropDownItems.Add(new ToolStripSeparator());
+                root.DropDownItems.Add(TrayMenuStyle.Header("Подключения"));
+            }
+            foreach (var a in s.Adapters)
+            {
+                var it = TrayMenuStyle.Speed(a.Label + (a.Isp.Length > 0 ? " · " + a.Isp : "") + (a.LimitMbps > 0 ? " · до " + a.LimitMbps : ""), null, "↓ " + NetText.Mbps(a.Down), "↑ " + NetText.Mbps(a.Up));
+                it.Enabled = a.Present;
+                root.DropDownItems.Add(it);
+            }
+            root.DropDownItems.Add(new ToolStripSeparator());
+            root.DropDownItems.Add(new ToolStripMenuItem("Открыть «Сеть»", null, (o, e) => OpenPage("net")));
+            menu.Items.Add(root);
+        }
+        DateTime netMenuAt;
+
+        /// Открыть окно на нужной вкладке.
+        public void OpenPage(string page)
+        {
+            if (Array.IndexOf(new[] { "home", "color", "sound", "shot", "rec", "net", "general" }, page) < 0) page = "home";
+            General.Page = page; General.Save();
+            bool had = window != null && !window.IsDisposed;
+            OpenWindow();
+            if (had) window.ShowPage(page);
+        }
 
         public void OpenWindow()
         {
@@ -964,6 +1025,7 @@ namespace Qural
             tray.Dispose();
             msg.Dispose();
             if (deck != null) deck.Dispose();
+            Net.Dispose();
             recorder.Shutdown();
             if (shotForm != null && !shotForm.IsDisposed) shotForm.Close();
             if (window != null && !window.IsDisposed) window.Close();

@@ -135,9 +135,20 @@ export class Focus {
     return ctx;
   }
 
+  // читаем хвост журнала; если последний ответ модели не влез (в чат вставили картинку или видео — одна строка
+  // журнала бывает в мегабайты), берём хвост больше: 512 КБ → 4 МБ → 32 МБ → весь файл
   static tail(file, size) {
+    for (const want of [512 * 1024, 4 << 20, 32 << 20, size]) {
+      const len = Math.min(size, want);
+      const r = Focus.scan(file, size, len);
+      if (r || len >= size) return r;
+    }
+    return null;
+  }
+
+  static scan(file, size, len) {
     try {
-      const len = Math.min(size, 512 * 1024), buf = Buffer.alloc(len);
+      const buf = Buffer.alloc(len);
       const fd = fs.openSync(file, 'r'); fs.readSync(fd, buf, 0, len, size - len); fs.closeSync(fd);
       const lines = buf.toString('utf8').split('\n');
       // Claude остановили (Esc, «Стоп» в приложении): хука Stop при этом нет, в журнале — строка пользователя

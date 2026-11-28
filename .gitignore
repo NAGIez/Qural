@@ -6,6 +6,9 @@ dist/
 # FFmpeg скачивает build.ps1 (файлы больше 100 МБ — GitHub их не принимает)
 Projects/Qural/ffmpeg/*.exe
 
+# net-merge (вкладка «Сеть») скачивает build.ps1 — tools/get-netmerge.ps1, версия и SHA-256 закреплены там
+Projects/Qural/netmerge/
+
 # прежние программы, вошедшие в Qural, и чужие примеры
 Projects/ColorSwitch/
 Projects/MixKeys/
@@ -21,3 +24,4 @@ Projects/MixKeys/
 # Qural для Mac — результаты сборки
 Projects/QuralMac/.build/
 Projects/QuralMac/build/
+Projects/QuralDeck/profiles/

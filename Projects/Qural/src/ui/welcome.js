@@ -6,8 +6,9 @@
     { id: 'sound', title: 'Микшер звука', text: 'Громкость каждой программы своими клавишами: игра тише, Discord громче, Spotify без звука' },
     { id: 'shot', title: 'Скриншоты', text: 'PrtSc — выделить область, нарисовать стрелки, текст, размытие, скопировать или сохранить' },
     { id: 'rec', title: 'Запись экрана', text: 'Область, окно или весь экран со звуком и шумоподавлением; редактор для обрезки' },
+    { id: 'net', title: 'Сеть', text: 'Все подключения сразу: кабель, Wi-Fi и телефон складываются в одно — загрузки и игры быстрее' },
   ];
-  const on = { color: false, sound: false, shot: false, rec: false };   // по умолчанию ничего не выбрано — решает пользователь
+  const on = { color: false, sound: false, shot: false, rec: false, net: false };   // по умолчанию ничего не выбрано — решает пользователь
 
   function render() {
     $('w-mods').innerHTML = MODS.map((m) =>
@@ -24,7 +25,7 @@
     render();
   });
   $('w-go').onclick = () => {
-    Q.send('shell', { type: 'welcome', color: on.color, sound: on.sound, shot: on.shot, rec: on.rec, autostart: $('w-auto').checked });
+    Q.send('shell', { type: 'welcome', color: on.color, sound: on.sound, shot: on.shot, rec: on.rec, net: on.net, autostart: $('w-auto').checked });
   };
 
   // окно открыто впервые — показать выбор; после «Начать» Qural пришлёт welcome: false
